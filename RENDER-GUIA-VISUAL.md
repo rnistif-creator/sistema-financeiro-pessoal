@@ -154,8 +154,10 @@ pip install -r requirements.txt
 
 **Start Command:**
 ```bash
-uvicorn app.main:app --host 0.0.0.0 --port $PORT
+python pre_start.py && uvicorn app.main:app --host 0.0.0.0 --port $PORT
 ```
+
+**Nota:** O `pre_start.py` garante que os diretórios necessários existem antes de iniciar.
 
 ### 3.3 Plano (Free Tier)
 

@@ -87,7 +87,7 @@ pip install -r requirements.txt
 
 ### Start Command
 ```
-uvicorn app.main:app --host 0.0.0.0 --port $PORT
+python pre_start.py && uvicorn app.main:app --host 0.0.0.0 --port $PORT
 ```
 
 ### SECRET_KEY Produção
