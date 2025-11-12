@@ -11,21 +11,38 @@ def setup_directories():
     """Cria diretórios necessários se não existirem"""
     # Obter DB_PATH da variável de ambiente
     db_path = os.getenv("DB_PATH", "lancamentos.db")
+    db_path_obj = Path(db_path)
     
-    # Se for caminho absoluto, extrair o diretório
-    if os.path.isabs(db_path):
-        db_dir = Path(db_path).parent
+    # Determinar diretório do banco de dados
+    if db_path_obj.is_absolute():
+        db_dir = db_path_obj.parent
     else:
         # Se for relativo, usar diretório atual
         db_dir = Path.cwd()
+        # Garantir que o caminho completo existe
+        full_path = db_dir / db_path_obj
+        db_dir = full_path.parent
     
     # Criar diretório de dados se não existir
     try:
         db_dir.mkdir(parents=True, exist_ok=True)
-        print(f"✓ Diretório de dados garantido: {db_dir}")
+        print(f"✓ Diretório do banco criado: {db_dir}")
+        
+        # Verificar se conseguimos criar arquivos no diretório
+        test_file = db_dir / ".write_test"
+        test_file.write_text("test")
+        test_file.unlink()
+        print(f"✓ Permissões de escrita OK em {db_dir}")
     except Exception as e:
-        print(f"✗ Erro ao criar diretório {db_dir}: {e}", file=sys.stderr)
-        sys.exit(1)
+        print(f"✗ Erro ao criar/acessar diretório {db_dir}: {e}", file=sys.stderr)
+        print(f"✗ Tentando criar diretórios intermediários...", file=sys.stderr)
+        try:
+            # Tentar criar todos os diretórios pais
+            os.makedirs(db_dir, exist_ok=True)
+            print(f"✓ Diretório criado com makedirs: {db_dir}")
+        except Exception as e2:
+            print(f"✗ Falha final ao criar diretório: {e2}", file=sys.stderr)
+            sys.exit(1)
     
     # Criar diretório de backups
     backup_dir = Path.cwd() / "backups"
@@ -36,16 +53,6 @@ def setup_directories():
         print(f"✗ Erro ao criar diretório de backups: {e}", file=sys.stderr)
         # Não fatal - continuar mesmo se backups falhar
         pass
-    
-    # Verificar permissões de escrita
-    try:
-        test_file = db_dir / ".write_test"
-        test_file.write_text("test")
-        test_file.unlink()
-        print(f"✓ Permissões de escrita OK em {db_dir}")
-    except Exception as e:
-        print(f"✗ Sem permissão de escrita em {db_dir}: {e}", file=sys.stderr)
-        sys.exit(1)
     
     print("✓ Configuração de diretórios concluída\n")
 

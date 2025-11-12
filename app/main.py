@@ -39,8 +39,15 @@ DB_PATH = os.getenv("DB_PATH", "lancamentos.db")
 # Permitir uso de DATABASE_URL (ex.: PostgreSQL) com fallback para SQLite local
 DATABASE_URL = os.getenv("DATABASE_URL") or f"sqlite:///{DB_PATH}"
 
-# Criar diretório de backups se não existir
+# Criar diretórios necessários se não existirem
 BACKUP_DIR.mkdir(exist_ok=True)
+
+# Garantir que o diretório do banco de dados SQLite existe
+if not DATABASE_URL.startswith("postgresql") and not DATABASE_URL.startswith("mysql"):
+    db_path_obj = Path(DB_PATH)
+    if db_path_obj.is_absolute():
+        db_dir = db_path_obj.parent
+        db_dir.mkdir(parents=True, exist_ok=True)
 
 class Base(DeclarativeBase):
     pass
