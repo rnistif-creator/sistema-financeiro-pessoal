@@ -13,6 +13,18 @@ Este erro significa: **"Não foi possível criar/acessar o banco de dados"**
 
 ## ✅ Soluções (em ordem)
 
+### 🔥 ATUALIZAÇÃO: Código já corrigido!
+
+O código no GitHub já foi atualizado com correções automáticas. Faça um **redeploy** no Render:
+
+1. Dashboard → **Manual Deploy** → **Deploy latest commit**
+2. Aguarde 2-3 minutos
+3. Verifique os logs - deve ver: `✓ Diretório do banco criado`
+
+**Se ainda assim falhar**, siga as soluções abaixo:
+
+---
+
 ### Solução 1: Verificar Disco Persistente ⭐ MAIS COMUM
 
 **O problema:** O diretório `/opt/render/project/src/data` não existe porque o disco não está montado.
