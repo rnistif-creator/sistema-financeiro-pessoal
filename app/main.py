@@ -36,7 +36,8 @@ STATIC_DIR = BASE_DIR / "static"
 BACKUP_DIR = BASE_DIR.parent / "backups"
 
 DB_PATH = os.getenv("DB_PATH", "lancamentos.db")
-DATABASE_URL = f"sqlite:///{DB_PATH}"
+# Permitir uso de DATABASE_URL (ex.: PostgreSQL) com fallback para SQLite local
+DATABASE_URL = os.getenv("DATABASE_URL") or f"sqlite:///{DB_PATH}"
 
 # Criar diretório de backups se não existir
 BACKUP_DIR.mkdir(exist_ok=True)
