@@ -4,6 +4,23 @@ Este guia explica como gerenciar múltiplos ambientes da aplicação.
 
 ---
 
+## 🌐 URLs dos Ambientes
+
+### Staging (Desenvolvimento/Testes)
+- **URL:** https://sistema-financeiro-pessoal-staging.onrender.com
+- **Branch:** `staging`
+- **Auto-Deploy:** ✅ Ativado
+- **Health Check:** https://sistema-financeiro-pessoal-staging.onrender.com/health
+- **Status:** ✅ OPERACIONAL (última validação: 2025-11-12)
+
+### Produção
+- **URL:** [Configurar após setup]
+- **Branch:** `main`
+- **Auto-Deploy:** ❌ Desativado (deploy manual)
+- **Health Check:** [URL]/health
+
+---
+
 ## 📋 Ambientes Disponíveis
 
 ### 1. Desenvolvimento (Local)
