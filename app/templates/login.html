@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Entrar - Sistema Financeiro</title>
+  <link rel="manifest" href="/static/manifest.json" />
+  <link rel="stylesheet" href="/static/components.css" />
+  <style>
+    body { background: #0f172a; color: #e2e8f0; font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif; min-height: 100vh; display: grid; place-items: center; margin: 0; }
+    .card { width: 100%; max-width: 380px; background: rgba(15, 23, 42, 0.8); border: 1px solid rgba(255,255,255,0.08); border-radius: 16px; padding: 24px; box-shadow: 0 10px 30px rgba(0,0,0,0.3); }
+    h1 { margin: 0 0 6px; font-size: 20px; color: #22d3ee; }
+    p { margin: 0 0 18px; color: #94a3b8; font-size: 14px; }
+    label { display: block; font-size: 13px; color: #cbd5e1; margin: 10px 0 6px; }
+    input { width: 100%; padding: 12px; border-radius: 10px; border: 1px solid rgba(148,163,184,0.2); background: rgba(2,6,23,0.6); color: #e2e8f0; }
+    button { width: 100%; margin-top: 18px; padding: 12px; border: none; border-radius: 10px; background: linear-gradient(135deg,#22d3ee,#06b6d4); color: white; font-weight: 600; cursor: pointer; box-shadow: 0 6px 20px rgba(34,211,238,0.3); }
+    .error { color: #fecaca; background: rgba(239,68,68,0.12); border: 1px solid rgba(239,68,68,0.25); padding: 10px; border-radius: 8px; margin-bottom: 10px; display: none; }
+    .success { color: #86efac; background: rgba(34,197,94,0.12); border: 1px solid rgba(34,197,94,0.25); padding: 10px; border-radius: 8px; margin-bottom: 10px; display: none; }
+    .footer { margin-top: 16px; font-size: 12px; color: #64748b; text-align: center; }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <h1>Bem-vindo de volta</h1>
+    <p>Entre para acessar seu painel financeiro.</p>
+    <div id="success" class="success" role="alert"></div>
+    <div id="error" class="error" role="alert"></div>
+    <form id="form-login">
+      <label for="email">Email</label>
+      <input id="email" name="email" type="email" required autocomplete="email" placeholder="voce@exemplo.com" />
+      <label for="password">Senha</label>
+      <input id="password" name="password" type="password" required autocomplete="current-password" placeholder="••••••••" />
+      <button id="btn-login" type="submit">Entrar</button>
+    </form>
+    <div class="footer">Problemas para entrar? Fale com o administrador.</div>
+  </div>
+
+  <script{%- if csp_nonce %} nonce="{{ csp_nonce }}"{%- endif %}>
+    const params = new URLSearchParams(location.search);
+    const nextUrl = params.get('next') || '/';
+    const msg = params.get('msg');
+    const form = document.getElementById('form-login');
+    const btn = document.getElementById('btn-login');
+    const error = document.getElementById('error');
+    const success = document.getElementById('success');
+
+    // Mostrar mensagem de sucesso se veio de alteração de senha
+    if (msg === 'senha_alterada') {
+      success.textContent = '✅ Senha alterada com sucesso! Entre com sua nova senha.';
+      success.style.display = 'block';
+      // Limpar autofill para forçar digitação manual
+      setTimeout(() => {
+        document.getElementById('password').value = '';
+      }, 100);
+    }
+
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      error.style.display = 'none';
+      btn.disabled = true; btn.textContent = 'Entrando...';
+      try {
+        const email = document.getElementById('email').value.trim();
+        const password = document.getElementById('password').value;
+        const resp = await fetch('/auth/login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email, password })
+        });
+        if (!resp.ok) {
+          const data = await resp.json().catch(() => ({ detail: 'Erro ao autenticar' }));
+          throw new Error(data.detail || 'Email ou senha incorretos');
+        }
+        // Em caso de sucesso, o cookie é definido pela API; redirecionar
+        window.location.href = nextUrl;
+      } catch (err) {
+        error.textContent = err.message || 'Falha no login';
+        error.style.display = 'block';
+      } finally {
+        btn.disabled = false; btn.textContent = 'Entrar';
+      }
+    });
+  </script>
+</body>
+</html>

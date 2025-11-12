@@ -1,0 +1,33 @@
+# fly.toml app configuration file generated for sistema-financeiro on 2025-11-12
+#
+# See https://fly.io/docs/reference/configuration/ for information about how to use this file.
+
+app = "sistema-financeiro-pessoal"
+primary_region = "gru"
+
+[build]
+  [build.args]
+    PYTHON_VERSION = "3.11"
+
+[env]
+  PORT = "8080"
+  ENVIRONMENT = "production"
+  LOG_LEVEL = "info"
+  DB_PATH = "/data/lancamentos.db"
+
+[http_service]
+  internal_port = 8080
+  force_https = true
+  auto_stop_machines = true
+  auto_start_machines = true
+  min_machines_running = 0
+  processes = ["app"]
+
+[[vm]]
+  cpu_kind = "shared"
+  cpus = 1
+  memory_mb = 256
+
+[mounts]
+  source = "data"
+  destination = "/data"

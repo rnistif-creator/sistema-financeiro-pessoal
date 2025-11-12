@@ -1,0 +1,65 @@
+# Ignore arquivos Python compilados
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+
+# Ambientes virtuais
+venv/
+.venv/
+env/
+ENV/
+
+# Banco de dados local (será criado dentro do container)
+*.db
+lancamentos.db
+test.db
+
+# Backups locais (usar volume para persistir)
+backups/
+
+# Arquivos de IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Git
+.git/
+.gitignore
+
+# Variáveis de ambiente (podem conter senhas)
+.env
+.env.local
+
+# Arquivos de teste
+.pytest_cache/
+.coverage
+htmlcov/
+*.cover
+
+# Arquivos do sistema operacional
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Logs
+*.log
+
+# Documentação de desenvolvimento
+README.md
+TESTES.md
+
+# Scripts auxiliares de desenvolvimento
+run.sh
+start_monitor.bat
+start_with_monitor.ps1
+start_server.py
+test_*.py
+diagnose.py
+
+# Arquivos temporários
+*.tmp
+*.temp

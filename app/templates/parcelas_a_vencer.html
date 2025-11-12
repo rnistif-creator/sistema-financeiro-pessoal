@@ -1,0 +1,915 @@
+<!doctype html>
+<html lang="pt-br">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Parcelas a Vencer - Sistema Financeiro</title>
+    <style>
+      :root{
+        --bg: #0f172a;
+        --card: #111827;
+        --muted: #94a3b8;
+        --text: #e5e7eb;
+        --primary: #22d3ee;
+        --primary-strong: #06b6d4;
+        --ring: rgba(34,211,238,.35);
+        --danger: #ef4444;
+        --success: #22c55e;
+        --warning: #f59e0b;
+        --surface: #0b1220;
+      }
+      *{ box-sizing: border-box; }
+      html, body{ height: 100%; }
+      body{
+        margin: 0;
+        background: radial-gradient(1200px 600px at 20% -10%, rgba(34,211,238,.12), transparent 60%),
+                    radial-gradient(1000px 600px at 110% 10%, rgba(168,85,247,.10), transparent 60%),
+                    var(--bg);
+        color: var(--text);
+        font-family: Inter, ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial;
+        line-height: 1.5;
+        padding: 24px;
+      }
+      .container{
+        max-width: 1200px;
+        margin: 0 auto;
+      }
+      .header{
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 24px;
+      }
+      .title{
+        font-size: 28px;
+        font-weight: 700;
+        margin: 0;
+      }
+      .nav-links{
+        display: flex;
+        gap: 12px;
+        flex-wrap: wrap;
+      }
+      .nav-btn{
+        padding: 8px 16px;
+        border-radius: 12px;
+        text-decoration: none;
+        color: var(--primary);
+        background: rgba(34,211,238,.07);
+        border: 1px dashed rgba(34,211,238,.25);
+        transition: all .2s ease;
+      }
+      .nav-btn:hover{
+        background: rgba(34,211,238,.12);
+        border-color: rgba(34,211,238,.35);
+      }
+      .filters{
+        background: var(--card);
+        padding: 20px;
+        border-radius: 12px;
+        margin-bottom: 24px;
+        display: flex;
+        gap: 16px;
+        align-items: end;
+        flex-wrap: wrap;
+      }
+      .filter-group{
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+      }
+      .filter-group label{
+        font-size: 13px;
+        color: var(--muted);
+        font-weight: 600;
+      }
+      .quick-filters{
+        display: flex;
+        gap: 8px;
+      }
+      .quick-filter-btn{
+        padding: 8px 14px;
+        background: rgba(168,85,247,0.15);
+        border: 1px solid rgba(168,85,247,0.3);
+        border-radius: 6px;
+        color: #a855f7;
+        cursor: pointer;
+        font-size: 13px;
+        font-weight: 600;
+        transition: all 0.2s;
+      }
+      .quick-filter-btn:hover, .quick-filter-btn.active{
+        background: rgba(168,85,247,0.3);
+        border-color: #a855f7;
+      }
+      input[type="date"], select{
+        padding: 10px 14px;
+        background: var(--surface);
+        border: 1px solid rgba(148,163,184,0.2);
+        border-radius: 8px;
+        color: var(--text);
+        font-size: 14px;
+      }
+      input[type="date"]:focus, select:focus{
+        outline: none;
+        border-color: var(--primary);
+        box-shadow: 0 0 0 3px var(--ring);
+      }
+      .btn{
+        padding: 10px 18px;
+        background: var(--primary);
+        color: var(--bg);
+        border: none;
+        border-radius: 8px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.2s;
+      }
+      .btn:hover{
+        background: var(--primary-strong);
+        transform: translateY(-1px);
+      }
+      .btn-secondary{
+        background: rgba(148,163,184,0.15);
+        color: var(--text);
+        border: 1px solid rgba(148,163,184,0.3);
+      }
+      .btn-secondary:hover{
+        background: rgba(148,163,184,0.25);
+      }
+      .stats-grid{
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 16px;
+        margin-bottom: 24px;
+      }
+      .stat-card{
+        background: var(--card);
+        padding: 20px;
+        border-radius: 12px;
+        border: 1px solid rgba(148,163,184,0.1);
+      }
+      .stat-label{
+        font-size: 13px;
+        color: var(--muted);
+        margin-bottom: 8px;
+      }
+      .stat-value{
+        font-size: 24px;
+        font-weight: 700;
+        margin-bottom: 4px;
+      }
+      .stat-value.danger{ color: var(--danger); }
+      .stat-value.success{ color: var(--success); }
+      .stat-value.warning{ color: var(--warning); }
+      .stat-subtext{
+        font-size: 12px;
+        color: var(--muted);
+      }
+      .table-container{
+        background: var(--card);
+        border-radius: 12px;
+        overflow: hidden;
+      }
+      .table-header{
+        padding: 16px 20px;
+        border-bottom: 1px solid rgba(148,163,184,0.1);
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+      }
+      .table-title{
+        font-size: 18px;
+        font-weight: 600;
+      }
+      .bulk-actions{
+        display: none;
+        gap: 8px;
+      }
+      .bulk-actions.show{
+        display: flex;
+      }
+      table{
+        width: 100%;
+        border-collapse: collapse;
+      }
+      thead th{
+        text-align: left;
+        padding: 12px 16px;
+        color: var(--muted);
+        font-size: 13px;
+        font-weight: 600;
+        border-bottom: 2px solid rgba(148,163,184,0.2);
+      }
+      tbody td{
+        padding: 16px;
+        border-bottom: 1px solid rgba(148,163,184,0.1);
+      }
+      tbody tr:hover{
+        background: rgba(34,211,238,0.05);
+      }
+      tbody tr.vencida{
+        background: rgba(239,68,68,0.1);
+      }
+      tbody tr.vencida:hover{
+        background: rgba(239,68,68,0.15);
+      }
+      tbody tr.vence-hoje{
+        background: rgba(245,158,11,0.1);
+      }
+      tbody tr.vence-hoje:hover{
+        background: rgba(245,158,11,0.15);
+      }
+      .badge{
+        display: inline-block;
+        padding: 4px 10px;
+        border-radius: 6px;
+        font-size: 12px;
+        font-weight: 600;
+      }
+      .badge.receita{
+        background: rgba(34,197,94,0.15);
+        color: #22c55e;
+      }
+      .badge.despesa{
+        background: rgba(239,68,68,0.15);
+        color: #ef4444;
+      }
+      .badge.vencida{
+        background: rgba(239,68,68,0.2);
+        color: #ef4444;
+      }
+      .badge.vence-hoje{
+        background: rgba(245,158,11,0.2);
+        color: #f59e0b;
+      }
+      .badge.a-vencer{
+        background: rgba(148,163,184,0.2);
+        color: var(--muted);
+      }
+      .btn-pagar{
+        padding: 6px 12px;
+        background: rgba(34,197,94,0.15);
+        color: #22c55e;
+        border: none;
+        border-radius: 6px;
+        font-size: 12px;
+        font-weight: 600;
+        cursor: pointer;
+      }
+      .btn-pagar:hover{
+        background: rgba(34,197,94,0.25);
+      }
+      .empty-state{
+        text-align: center;
+        padding: 60px 20px;
+        color: var(--muted);
+      }
+      .empty-state-icon{
+        font-size: 48px;
+        margin-bottom: 16px;
+      }
+      input[type="checkbox"]{
+        width: 18px;
+        height: 18px;
+        cursor: pointer;
+      }
+      .btn-editar{
+        padding: 6px 12px;
+        background: rgba(59,130,246,0.15);
+        color: #3b82f6;
+        border: none;
+        border-radius: 6px;
+        font-size: 12px;
+        font-weight: 600;
+        cursor: pointer;
+        margin-right: 6px;
+      }
+      .btn-editar:hover{
+        background: rgba(59,130,246,0.25);
+      }
+      .modal-overlay{
+        display: none;
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: rgba(0,0,0,0.7);
+        z-index: 1000;
+        align-items: center;
+        justify-content: center;
+      }
+      .modal-overlay.active{
+        display: flex;
+      }
+      .modal{
+        background: var(--card);
+        border-radius: 16px;
+        padding: 24px;
+        max-width: 500px;
+        width: 90%;
+        box-shadow: 0 20px 25px -5px rgba(0,0,0,0.3);
+      }
+      .modal-header{
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-bottom: 20px;
+        padding-bottom: 16px;
+        border-bottom: 1px solid rgba(148,163,184,0.2);
+      }
+      .modal-title{
+        font-size: 20px;
+        font-weight: 700;
+        color: var(--text);
+      }
+      .modal-close{
+        background: none;
+        border: none;
+        font-size: 24px;
+        color: var(--muted);
+        cursor: pointer;
+        padding: 0;
+        width: 32px;
+        height: 32px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 6px;
+      }
+      .modal-close:hover{
+        background: rgba(148,163,184,0.1);
+      }
+      .form-group{
+        margin-bottom: 16px;
+      }
+      .form-group label{
+        display: block;
+        margin-bottom: 6px;
+        font-weight: 600;
+        color: var(--text);
+        font-size: 14px;
+      }
+      .form-group input{
+        width: 100%;
+        padding: 10px 14px;
+        background: var(--surface);
+        border: 1px solid rgba(148,163,184,0.2);
+        border-radius: 8px;
+        color: var(--text);
+        font-size: 14px;
+        box-sizing: border-box;
+      }
+      .form-group input:focus{
+        outline: none;
+        border-color: var(--primary);
+        box-shadow: 0 0 0 3px var(--ring);
+      }
+      .modal-actions{
+        display: flex;
+        gap: 12px;
+        justify-content: flex-end;
+        margin-top: 24px;
+      }
+      .btn-cancel{
+        padding: 10px 18px;
+        background: rgba(148,163,184,0.15);
+        color: var(--text);
+        border: 1px solid rgba(148,163,184,0.3);
+        border-radius: 8px;
+        font-weight: 600;
+        cursor: pointer;
+      }
+      .btn-cancel:hover{
+        background: rgba(148,163,184,0.25);
+      }
+      .btn-save{
+        padding: 10px 18px;
+        background: var(--primary);
+        color: var(--bg);
+        border: none;
+        border-radius: 8px;
+        font-weight: 600;
+        cursor: pointer;
+      }
+      .btn-save:hover{
+        background: var(--primary-strong);
+      }
+    </style>
+  </head>
+  <body>
+    {% include '_app_sidebar.html' %}
+    <div class="container" id="main-content">
+      <div class="header">
+        <h1 class="title">📅 Parcelas a Vencer</h1>
+        <div class="nav-links">
+          <button id="btnOpenFiltersParc" class="nav-btn" style="border-style:solid; border-color: rgba(148,163,184,0.35); background: rgba(15,23,42,0.55); color: var(--text);">🧰 Filtros</button>
+          <button onclick="exportarParcelasExcel()" style="padding:10px 20px; background:linear-gradient(135deg, #10b981, #059669); color:white; border:none; border-radius:10px; font-weight:700; cursor:pointer; display:flex; align-items:center; gap:8px; transition:all .2s; box-shadow:0 4px 12px rgba(16,185,129,0.3);" onmouseover="this.style.transform='translateY(-2px)'; this.style.boxShadow='0 6px 16px rgba(16,185,129,0.4)'" onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='0 4px 12px rgba(16,185,129,0.3)'">
+            📊 Exportar Excel
+          </button>
+        </div>
+      </div>
+
+      <!-- Sidebar de Filtros -->
+      <div id="overlayParc" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.6); z-index:1110;"></div>
+      <aside id="sidebarParc" style="position:fixed; top:0; left:0; bottom:0; width:320px; max-width:90vw; background:var(--card); border-right:1px solid rgba(148,163,184,0.15); transform:translateX(-100%); transition:transform .25s ease; z-index:1120; display:flex; flex-direction:column;">
+        <div style="display:flex; align-items:center; justify-content:space-between; padding:16px; border-bottom:1px solid rgba(148,163,184,0.12);">
+          <strong>🧰 Filtros</strong>
+          <button id="btnCloseFiltersParc" style="background:transparent; color:var(--text); border:none; font-size:20px; cursor:pointer">✕</button>
+        </div>
+        <div style="padding:16px; overflow:auto;">
+          <div class="filter-group">
+            <label>Período Rápido</label>
+            <div class="quick-filters" style="flex-wrap:wrap">
+              <button class="quick-filter-btn" onclick="aplicarFiltroRapido(this, 7)">7 dias</button>
+              <button class="quick-filter-btn" onclick="aplicarFiltroRapido(this, 15)">15 dias</button>
+              <button class="quick-filter-btn active" onclick="aplicarFiltroRapido(this, 30)">30 dias</button>
+              <button class="quick-filter-btn" onclick="aplicarFiltroRapido(this, 60)">60 dias</button>
+            </div>
+          </div>
+          <div class="filter-group">
+            <label>Data Início</label>
+            <input type="date" id="dataInicio">
+          </div>
+          <div class="filter-group">
+            <label>Data Fim</label>
+            <input type="date" id="dataFim">
+          </div>
+          <div class="filter-group">
+            <label>Tipo</label>
+            <select id="filtroTipo">
+              <option value="">Todos</option>
+              <option value="receita">Receitas</option>
+              <option value="despesa">Despesas</option>
+            </select>
+          </div>
+          <div class="filter-group">
+            <label>Status</label>
+            <select id="filtroStatus">
+              <option value="">Todos</option>
+              <option value="vencidas">Vencidas</option>
+              <option value="vence_hoje">Vence Hoje</option>
+              <option value="a_vencer">A Vencer</option>
+            </select>
+          </div>
+          <div style="display:flex; gap:8px; margin-top:12px;">
+            <button class="btn" style="flex:1" onclick="carregarParcelas(); toggleParcSidebar(false);">Aplicar</button>
+          </div>
+        </div>
+      </aside>
+
+      <div class="stats-grid" id="statsGrid">
+        <!-- Stats serão inseridos aqui via JS -->
+      </div>
+
+      <div class="table-container">
+        <div class="table-header">
+          <div style="display:flex; align-items:center; gap:12px">
+            <input type="checkbox" id="selectAll" onchange="toggleSelectAll()">
+            <span class="table-title">Lista de Parcelas</span>
+          </div>
+          <div class="bulk-actions" id="bulkActions">
+            <button class="btn" onclick="pagarSelecionadas()">💰 Pagar Selecionadas</button>
+          </div>
+        </div>
+        <div id="tabelaParcelas">
+          <!-- Tabela será inserida aqui via JS -->
+        </div>
+      </div>
+    </div>
+
+    <script{%- if csp_nonce %} nonce="{{ csp_nonce }}"{%- endif %}>
+      // API_BASE, brl, todayISO agora vêm de config.js global
+      let parcelasSelecionadas = new Set();
+
+      function addDays(date, days) {
+        const result = new Date(date);
+        result.setDate(result.getDate() + days);
+        return result.toISOString().split('T')[0];
+      }
+
+      function aplicarFiltroRapido(el, dias) {
+        // Remover active de todos os botões
+        document.querySelectorAll('.quick-filter-btn').forEach(btn => btn.classList.remove('active'));
+        // Adicionar active ao botão clicado
+        if (el) { el.classList.add('active'); }
+
+        const hoje = todayISO();
+        const fim = addDays(new Date(), dias);
+
+        document.getElementById('dataInicio').value = hoje;
+        document.getElementById('dataFim').value = fim;
+
+        carregarParcelas();
+      }
+
+      // ========== EXPORTAÇÃO EXCEL ==========
+      async function exportarParcelasExcel() {
+        try {
+          LoadingOverlay.show('Gerando Excel...');
+          
+          const dataInicio = document.getElementById('dataInicio').value;
+          const dataFim = document.getElementById('dataFim').value;
+          const status = document.getElementById('filtroStatus').value;
+          
+          // Construir URL com parâmetros
+          let url = `${API_BASE}/api/relatorios/parcelas-excel?data_inicio=${dataInicio}&data_fim=${dataFim}`;
+          if (status) url += `&status=${status}`;
+          
+          const res = await fetch(url);
+          if (!res.ok) {
+            const error = await res.json();
+            throw new Error(error.detail || 'Erro ao gerar Excel');
+          }
+          
+          const blob = await res.blob();
+          const downloadUrl = window.URL.createObjectURL(blob);
+          const a = document.createElement('a');
+          a.href = downloadUrl;
+          a.download = `parcelas_${new Date().getTime()}.xlsx`;
+          document.body.appendChild(a);
+          a.click();
+          window.URL.revokeObjectURL(downloadUrl);
+          document.body.removeChild(a);
+          
+          LoadingOverlay.hide();
+          Toast.success('✅ Excel gerado com sucesso!');
+        } catch (error) {
+          console.error(error);
+          LoadingOverlay.hide();
+          Toast.error('❌ ' + error.message);
+        }
+      }
+
+      async function carregarParcelas() {
+        const dataInicio = document.getElementById('dataInicio').value;
+        const dataFim = document.getElementById('dataFim').value;
+        const tipo = document.getElementById('filtroTipo').value;
+        const status = document.getElementById('filtroStatus').value;
+
+        try {
+          // Buscar parcelas filtradas
+          const params = new URLSearchParams({
+            data_inicio: dataInicio,
+            data_fim: dataFim
+          });
+          if (tipo) params.append('tipo', tipo);
+          if (status) params.append('status', status);
+
+          const res = await fetch(`${API_BASE}/api/parcelas/a-vencer?${params}`, {
+            credentials: 'include'
+          });
+          if (!res.ok) throw new Error('Erro ao carregar parcelas');
+          
+          const data = await res.json();
+
+          // Buscar sempre vencidas e vence hoje (independente do filtro)
+          const hoje = todayISO();
+          const paramsVencidas = new URLSearchParams({
+            data_inicio: '2000-01-01',
+            data_fim: hoje,
+            status: 'vencidas'
+          });
+          const resVencidas = await fetch(`${API_BASE}/api/parcelas/a-vencer?${paramsVencidas}`, {
+            credentials: 'include'
+          });
+          const dataVencidas = resVencidas.ok ? await resVencidas.json() : { stats: { vencidas: 0, valor_vencidas: 0 } };
+
+          const paramsHoje = new URLSearchParams({
+            data_inicio: hoje,
+            data_fim: hoje,
+            status: 'vence_hoje'
+          });
+          const resHoje = await fetch(`${API_BASE}/api/parcelas/a-vencer?${paramsHoje}`, {
+            credentials: 'include'
+          });
+          const dataHoje = resHoje.ok ? await resHoje.json() : { stats: { vence_hoje: 0, valor_vence_hoje: 0 } };
+
+          // Combinar stats: vencidas e vence_hoje sempre globais, resto do filtro
+          const statsComGlobais = {
+            ...data.stats,
+            vencidas: dataVencidas.stats.vencidas,
+            valor_vencidas: dataVencidas.stats.valor_vencidas,
+            vence_hoje: dataHoje.stats.vence_hoje,
+            valor_vence_hoje: dataHoje.stats.valor_vence_hoje
+          };
+
+          renderStats(statsComGlobais);
+          renderTabela(data.parcelas);
+        } catch (err) {
+          console.error(err);
+          document.getElementById('tabelaParcelas').innerHTML = '<div class="empty-state">Erro ao carregar parcelas</div>';
+        }
+      }
+
+      function renderStats(stats) {
+        // Calcular valores separados para A Vencer (precisa buscar do backend ou calcular aqui)
+        // Por ora, vamos calcular o saldo líquido como receitas - despesas do valor_a_vencer
+        const saldoLiquido = (stats.valor_receitas_a_vencer || 0) - (stats.valor_despesas_a_vencer || 0);
+        const saldoClass = saldoLiquido >= 0 ? 'success' : 'danger';
+        
+        const html = `
+          <div class="stat-card">
+            <div class="stat-label">📊 Total de Parcelas</div>
+            <div class="stat-value">${stats.total}</div>
+            <div class="stat-subtext">${stats.receitas} receitas | ${stats.despesas} despesas</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-label">⚠️ Parcelas Vencidas</div>
+            <div class="stat-value danger">${stats.vencidas}</div>
+            <div class="stat-subtext">${brl.format(stats.valor_vencidas)}</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-label">⏰ Vence Hoje</div>
+            <div class="stat-value warning">${stats.vence_hoje}</div>
+            <div class="stat-subtext">${brl.format(stats.valor_vence_hoje)}</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-label">📅 A Vencer</div>
+            <div class="stat-value success">${stats.a_vencer}</div>
+            <div class="stat-subtext" style="line-height: 1.6;">
+              <div style="color: #22c55e;">↑ ${brl.format(stats.valor_receitas_a_vencer || 0)}</div>
+              <div style="color: #ef4444;">↓ ${brl.format(stats.valor_despesas_a_vencer || 0)}</div>
+              <div style="font-weight: 700; color: ${saldoLiquido >= 0 ? '#22c55e' : '#ef4444'}; border-top: 1px solid rgba(148,163,184,0.2); padding-top: 4px; margin-top: 4px;">
+                = ${brl.format(saldoLiquido)}
+              </div>
+            </div>
+          </div>
+        `;
+        document.getElementById('statsGrid').innerHTML = html;
+      }
+
+      function renderTabela(parcelas) {
+        if (!parcelas || parcelas.length === 0) {
+          document.getElementById('tabelaParcelas').innerHTML = `
+            <div class="empty-state">
+              <div class="empty-state-icon">📭</div>
+              <p>Nenhuma parcela encontrada no período selecionado</p>
+            </div>
+          `;
+          return;
+        }
+
+        const hoje = todayISO();
+        const rows = parcelas.map(p => {
+          const isVencida = p.data_vencimento < hoje;
+          const isVenceHoje = p.data_vencimento === hoje;
+          const rowClass = isVencida ? 'vencida' : (isVenceHoje ? 'vence-hoje' : '');
+          const statusBadge = isVencida ? '<span class="badge vencida">⚠️ Vencida</span>' : 
+                             (isVenceHoje ? '<span class="badge vence-hoje">⏰ Vence Hoje</span>' : 
+                             '<span class="badge a-vencer">📅 A Vencer</span>');
+          
+          return `
+            <tr class="${rowClass}">
+              <td><input type="checkbox" class="parcela-checkbox" data-id="${p.id}" onchange="updateBulkActions()"></td>
+              <td>${p.lancamento_id}</td>
+              <td>${p.numero_parcela}</td>
+              <td><span class="badge ${p.tipo}">${p.tipo === 'receita' ? '📈' : '📉'} ${p.tipo}</span></td>
+              <td>${p.subtipo_nome || '-'}</td>
+              <td>${p.fornecedor}</td>
+              <td>${formatarDataBR(p.data_vencimento)}</td>
+              <td style="font-weight:600">${brl.format(p.valor)}</td>
+              <td>${statusBadge}</td>
+              <td>
+                <button class="btn-editar" onclick="abrirModalEdicao(${p.id}, '${p.data_vencimento}', ${p.valor})">✏️ Editar</button>
+                <button class="btn-pagar" onclick="pagarParcela(${p.id}, ${p.valor}, '${p.fornecedor.replace(/'/g, "\\'")}', ${p.numero_parcela})">💰 Pagar</button>
+              </td>
+            </tr>
+          `;
+        }).join('');
+
+        document.getElementById('tabelaParcelas').innerHTML = `
+          <table>
+            <thead>
+              <tr>
+                <th style="width:40px"></th>
+                <th>Lanç. ID</th>
+                <th>Parcela</th>
+                <th>Tipo</th>
+                <th>Subtipo</th>
+                <th>Fornecedor</th>
+                <th>Vencimento</th>
+                <th>Valor</th>
+                <th>Status</th>
+                <th style="text-align:right">Ações</th>
+              </tr>
+            </thead>
+            <tbody>${rows}</tbody>
+          </table>
+        `;
+      }
+
+      function toggleSelectAll() {
+        const selectAll = document.getElementById('selectAll').checked;
+        document.querySelectorAll('.parcela-checkbox').forEach(cb => {
+          cb.checked = selectAll;
+        });
+        updateBulkActions();
+      }
+
+      function updateBulkActions() {
+        parcelasSelecionadas.clear();
+        document.querySelectorAll('.parcela-checkbox:checked').forEach(cb => {
+          parcelasSelecionadas.add(parseInt(cb.dataset.id));
+        });
+        
+        const bulkActions = document.getElementById('bulkActions');
+        if (parcelasSelecionadas.size > 0) {
+          bulkActions.classList.add('show');
+        } else {
+          bulkActions.classList.remove('show');
+        }
+      }
+
+      async function pagarParcela(parcelaId, valorOriginal, fornecedor = 'Parcela', numeroParcela = null) {
+        // Usar o novo PaymentDialog
+        const resultado = await PaymentDialog.show({
+          parcelaId,
+          valorOriginal,
+          fornecedor,
+          numeroParcela
+        });
+        
+        if (!resultado) return; // Usuário cancelou
+
+        try {
+          const res = await fetchWithLoading(`${API_BASE}/api/parcelas/${parcelaId}/pagar`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(resultado),
+            timeout: 10000,
+            overlayText: 'Registrando pagamento...'
+          });
+          
+          Toast.success('Parcela marcada como paga!');
+          carregarParcelas();
+        } catch (err) {
+          console.error(err);
+          Toast.error('Erro: ' + err.message);
+        }
+      }
+
+      async function pagarSelecionadas() {
+        if (parcelasSelecionadas.size === 0) return;
+        
+        const dataPagamento = prompt(`Data de pagamento para ${parcelasSelecionadas.size} parcela(s) (AAAA-MM-DD):`, todayISO());
+        if (!dataPagamento) return;
+
+        try {
+          const promises = Array.from(parcelasSelecionadas).map(parcelaId => {
+            return fetch(`${API_BASE}/api/parcelas/${parcelaId}/pagar`, {
+              method: 'PATCH',
+              credentials: 'include',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                paga: true,
+                data_pagamento: dataPagamento,
+                valor_pago: null // usa valor original
+              })
+            });
+          });
+
+          await Promise.all(promises);
+          Toast.success(`${parcelasSelecionadas.size} parcela(s) marcada(s) como paga(s)!`);
+          
+          parcelasSelecionadas.clear();
+          document.getElementById('selectAll').checked = false;
+          carregarParcelas();
+        } catch (err) {
+          console.error(err);
+          Toast.error('Erro ao marcar parcelas: ' + err.message);
+        }
+      }
+
+      // Funções do Modal de Edição
+      function abrirModalEdicao(id, dataVencimento, valor) {
+        document.getElementById('parcelaIdEdit').value = id;
+        document.getElementById('dataVencimentoEdit').value = dataVencimento;
+        document.getElementById('valorEdit').value = parseFloat(valor).toFixed(2);
+        document.getElementById('modalEdicao').classList.add('active');
+      }
+
+      function fecharModal() {
+        document.getElementById('modalEdicao').classList.remove('active');
+        document.getElementById('formEdicao').reset();
+      }
+
+      async function salvarEdicao(event) {
+        event.preventDefault();
+        
+        const id = document.getElementById('parcelaIdEdit').value;
+        const dataVencimento = document.getElementById('dataVencimentoEdit').value;
+        const valor = parseFloat(document.getElementById('valorEdit').value);
+
+        try {
+          const response = await fetch(`${API_BASE}/api/parcelas/${id}`, {
+            method: 'PUT',
+            credentials: 'include',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              data_vencimento: dataVencimento,
+              valor: valor
+            })
+          });
+
+          if (!response.ok) {
+            const error = await response.json();
+            throw new Error(error.detail || 'Erro ao editar parcela');
+          }
+
+          Toast.success('Parcela editada com sucesso!');
+          fecharModal();
+          carregarParcelas();
+        } catch (err) {
+          console.error(err);
+          Toast.error('Erro ao editar parcela: ' + err.message);
+        }
+      }
+
+      // Fechar modal ao clicar fora (garantir que o elemento exista)
+      const modalBackdrop = document.getElementById('modalEdicao');
+      if (modalBackdrop) {
+        modalBackdrop.addEventListener('click', function(e) {
+          if (e.target === this) {
+            fecharModal();
+          }
+        });
+      }
+
+      // Inicializar
+      const hoje = todayISO();
+      const em30dias = addDays(new Date(), 30);
+      document.getElementById('dataInicio').value = hoje;
+      document.getElementById('dataFim').value = em30dias;
+      carregarParcelas();
+
+      // Sidebar handlers
+      function toggleParcSidebar(open){
+        const sb=document.getElementById('sidebarParc');
+        const ov=document.getElementById('overlayParc');
+        if(open){ sb.style.transform='translateX(0)'; ov.style.display='block'; }
+        else { sb.style.transform='translateX(-100%)'; ov.style.display='none'; }
+      }
+      document.getElementById('btnOpenFiltersParc').addEventListener('click', ()=> toggleParcSidebar(true));
+      document.getElementById('btnCloseFiltersParc').addEventListener('click', ()=> toggleParcSidebar(false));
+      document.getElementById('overlayParc').addEventListener('click', ()=> toggleParcSidebar(false));
+      document.addEventListener('keydown', (e)=>{ if(e.key==='Escape') toggleParcSidebar(false); });
+    </script>
+
+    <!-- Modal de Edição -->
+    <div id="modalEdicao" class="modal-overlay">
+      <div class="modal">
+        <div class="modal-header">
+          <h3 class="modal-title">✏️ Editar Parcela</h3>
+          <button class="modal-close" onclick="fecharModal()">&times;</button>
+        </div>
+        <form id="formEdicao" onsubmit="salvarEdicao(event)">
+          <input type="hidden" id="parcelaIdEdit">
+          <div class="form-group">
+            <label for="dataVencimentoEdit">Data de Vencimento</label>
+            <input type="date" id="dataVencimentoEdit" required>
+          </div>
+          <div class="form-group">
+            <label for="valorEdit">Valor (R$)</label>
+            <input type="number" id="valorEdit" step="0.01" min="0" required>
+          </div>
+          <div class="modal-actions">
+            <button type="button" class="btn-cancel" onclick="fecharModal()">Cancelar</button>
+            <button type="submit" class="btn-save">💾 Salvar</button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+      <script{%- if csp_nonce %} nonce="{{ csp_nonce }}"{%- endif %}>
+        // ============================================
+        // ATALHOS DE TECLADO
+        // ============================================
+        KeyboardShortcuts.register('ctrl+f', () => {
+          document.getElementById('btnOpenFiltersParc').click();
+        }, 'Abrir filtros');
+
+        KeyboardShortcuts.register('ctrl+r', () => {
+          carregarParcelas();
+          Toast.info('Parcelas atualizadas!');
+        }, 'Atualizar parcelas');
+
+        KeyboardShortcuts.register('ctrl+a', (e) => {
+          e.preventDefault();
+          const selectAll = document.getElementById('selectAll');
+          if (selectAll) {
+            selectAll.checked = !selectAll.checked;
+            selectAll.dispatchEvent(new Event('change'));
+          }
+        }, 'Selecionar todas');
+
+        KeyboardShortcuts.register('ctrl+p', () => {
+          const btnPagar = document.querySelector('[onclick*="pagarSelecionadas"]');
+          if (btnPagar && parcelasSelecionadas.size > 0) {
+            btnPagar.click();
+          }
+        }, 'Pagar selecionadas');
+      </script>
+  </body>
+</html>

@@ -1,0 +1,511 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Formas de Pagamento - Sistema Financeiro</title>
+    
+    <style>
+        .formas-container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        .page-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 30px;
+        }
+
+        .forma-card {
+            background: white;
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 15px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            transition: transform 0.2s;
+        }
+
+        .forma-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+        }
+
+        .forma-card.inativa {
+            opacity: 0.6;
+            background: #f5f5f5;
+        }
+
+        .forma-info {
+            flex: 1;
+        }
+
+        .forma-nome {
+            font-size: 18px;
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 8px;
+        }
+
+        .forma-detalhes {
+            display: flex;
+            gap: 20px;
+            flex-wrap: wrap;
+            color: #666;
+            font-size: 14px;
+        }
+
+        .forma-badge {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: 500;
+            text-transform: uppercase;
+        }
+
+        .badge-conta {
+            background: #e3f2fd;
+            color: #1976d2;
+        }
+
+        .badge-cartao_credito {
+            background: #fff3e0;
+            color: #f57c00;
+        }
+
+        .badge-cartao_debito {
+            background: #f3e5f5;
+            color: #7b1fa2;
+        }
+
+        .badge-dinheiro {
+            background: #e8f5e9;
+            color: #388e3c;
+        }
+
+        .badge-pix {
+            background: #fce4ec;
+            color: #c2185b;
+        }
+
+        .forma-actions {
+            display: flex;
+            gap: 10px;
+        }
+
+        .btn {
+            padding: 8px 16px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: all 0.2s;
+        }
+
+        .btn-primary {
+            background: #2196f3;
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: #1976d2;
+        }
+
+        .btn-secondary {
+            background: #757575;
+            color: white;
+        }
+
+        .btn-secondary:hover {
+            background: #616161;
+        }
+
+        .btn-danger {
+            background: #f44336;
+            color: white;
+        }
+
+        .btn-danger:hover {
+            background: #d32f2f;
+        }
+
+        .btn-icon {
+            padding: 8px;
+            background: transparent;
+            border: 1px solid #ddd;
+        }
+
+        .btn-icon:hover {
+            background: #f5f5f5;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 500;
+            color: #333;
+        }
+
+        .form-group input,
+        .form-group select,
+        .form-group textarea {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 14px;
+        }
+
+        .form-group textarea {
+            resize: vertical;
+            min-height: 80px;
+        }
+
+        .form-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 60px 20px;
+            color: #999;
+        }
+
+        .empty-state-icon {
+            font-size: 64px;
+            margin-bottom: 20px;
+        }
+
+        .filtros {
+            display: flex;
+            gap: 15px;
+            margin-bottom: 20px;
+            align-items: center;
+        }
+
+        .filtros label {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            cursor: pointer;
+        }
+    </style>
+</head>
+<body>
+    {% include '_app_sidebar.html' %}
+
+    <div class="formas-container">
+        <div class="page-header">
+            <h1>💳 Formas de Pagamento</h1>
+            <button class="btn btn-primary" onclick="abrirFormulario()">
+                ➕ Nova Forma
+            </button>
+        </div>
+
+        <div class="filtros">
+            <label>
+                <input type="checkbox" id="mostrarInativas" onchange="carregarFormas()">
+                Mostrar inativas
+            </label>
+        </div>
+
+        <div id="formasContainer">
+            <!-- Formas serão carregadas aqui -->
+        </div>
+    </div>
+
+    
+    <script{%- if csp_nonce %} nonce="{{ csp_nonce }}"{%- endif %}>
+        let formasCache = [];
+        let formaEditando = null;
+
+        const tiposForma = {
+            conta: 'Conta Bancária',
+            cartao_credito: 'Cartão de Crédito',
+            cartao_debito: 'Cartão de Débito',
+            dinheiro: 'Dinheiro',
+            pix: 'PIX'
+        };
+
+        async function carregarFormas() {
+            try {
+                const incluirInativas = document.getElementById('mostrarInativas').checked;
+                const response = await fetchWithLoading(
+                    `/api/formas-pagamento?incluir_inativas=${incluirInativas}`,
+                    { timeout: 10000, overlayText: 'Carregando formas de pagamento...' }
+                );
+                
+                formasCache = response;
+                
+                // Carregar contagem de uso para cada forma
+                const usagePromises = response.map(forma => 
+                    fetch(`/api/formas-pagamento/${forma.id}/usage`)
+                        .then(r => r.json())
+                        .catch(() => ({ parcelas_vinculadas: 0, em_uso: false }))
+                );
+                
+                const usageData = await Promise.all(usagePromises);
+                
+                // Adicionar informação de uso a cada forma
+                formasCache = response.map((forma, index) => ({
+                    ...forma,
+                    usage: usageData[index]
+                }));
+                
+                renderizarFormas();
+            } catch (error) {
+                console.error('Erro ao carregar formas:', error);
+                showToast('Erro ao carregar formas de pagamento', 'error');
+            }
+        }
+
+        function renderizarFormas() {
+            const container = document.getElementById('formasContainer');
+            
+            if (formasCache.length === 0) {
+                container.innerHTML = `
+                    <div class="empty-state">
+                        <div class="empty-state-icon">💳</div>
+                        <h3>Nenhuma forma de pagamento cadastrada</h3>
+                        <p>Clique em "Nova Forma" para adicionar uma conta ou cartão</p>
+                    </div>
+                `;
+                return;
+            }
+
+            container.innerHTML = formasCache.map(forma => `
+                <div class="forma-card ${forma.ativo ? '' : 'inativa'}">
+                    <div class="forma-info">
+                        <div class="forma-nome">
+                            ${forma.nome}
+                            ${forma.ativo ? '' : ' <span style="color: #f44336;">(Inativa)</span>'}
+                            ${forma.usage && forma.usage.em_uso ? ` <span class="forma-badge" style="background: rgba(34,211,238,0.15); color: #22d3ee; font-size: 11px;">📊 ${forma.usage.parcelas_vinculadas} pagamento(s)</span>` : ''}
+                        </div>
+                        <div class="forma-detalhes">
+                            <span class="forma-badge badge-${forma.tipo}">
+                                ${tiposForma[forma.tipo] || forma.tipo}
+                            </span>
+                            ${forma.banco ? `<span>🏦 ${forma.banco}</span>` : ''}
+                            ${forma.limite_credito ? `<span>💰 Limite: R$ ${forma.limite_credito.toFixed(2)}</span>` : ''}
+                            ${forma.observacao ? `<span>📝 ${forma.observacao}</span>` : ''}
+                        </div>
+                    </div>
+                    <div class="forma-actions">
+                        <button class="btn-icon" onclick="editarForma(${forma.id})" title="Editar">
+                            ✏️
+                        </button>
+                        <button class="btn-icon" onclick="toggleForma(${forma.id})" title="${forma.ativo ? 'Desativar' : 'Ativar'}">
+                            ${forma.ativo ? '🔴' : '🟢'}
+                        </button>
+                        <button class="btn-icon" onclick="confirmarExclusao(${forma.id}, '${forma.nome}')" title="Excluir">
+                            🗑️
+                        </button>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function abrirFormulario(forma = null) {
+            formaEditando = forma;
+            const titulo = forma ? 'Editar Forma de Pagamento' : 'Nova Forma de Pagamento';
+            
+            const html = `
+                <form id="formaForm" onsubmit="salvarForma(event)">
+                    <div class="form-group">
+                        <label>Nome *</label>
+                        <input type="text" name="nome" value="${forma?.nome || ''}" required maxlength="100">
+                    </div>
+
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Tipo *</label>
+                            <select name="tipo" required onchange="toggleCamposAdicionais(this.value)">
+                                <option value="">Selecione...</option>
+                                <option value="conta" ${forma?.tipo === 'conta' ? 'selected' : ''}>Conta Bancária</option>
+                                <option value="cartao_credito" ${forma?.tipo === 'cartao_credito' ? 'selected' : ''}>Cartão de Crédito</option>
+                                <option value="cartao_debito" ${forma?.tipo === 'cartao_debito' ? 'selected' : ''}>Cartão de Débito</option>
+                                <option value="dinheiro" ${forma?.tipo === 'dinheiro' ? 'selected' : ''}>Dinheiro</option>
+                                <option value="pix" ${forma?.tipo === 'pix' ? 'selected' : ''}>PIX</option>
+                            </select>
+                        </div>
+
+                        <div class="form-group">
+                            <label>Banco / Instituição</label>
+                            <input type="text" name="banco" value="${forma?.banco || ''}" maxlength="100">
+                        </div>
+                    </div>
+
+                    <div class="form-group" id="limiteCreditoGroup" style="display: ${forma?.tipo === 'cartao_credito' ? 'block' : 'none'};">
+                        <label>Limite de Crédito</label>
+                        <input type="number" name="limite_credito" value="${forma?.limite_credito || ''}" step="0.01" min="0">
+                    </div>
+
+                    <div class="form-group">
+                        <label>Observação</label>
+                        <textarea name="observacao" maxlength="500">${forma?.observacao || ''}</textarea>
+                    </div>
+
+                    <div class="form-group">
+                        <label>
+                            <input type="checkbox" name="ativo" ${forma?.ativo !== false ? 'checked' : ''}>
+                            Ativa
+                        </label>
+                    </div>
+
+                    <div style="display: flex; gap: 10px; justify-content: flex-end; margin-top: 20px;">
+                        <button type="button" class="btn btn-secondary" onclick="PromptDialog.close()">Cancelar</button>
+                        <button type="submit" class="btn btn-primary">Salvar</button>
+                    </div>
+                </form>
+            `;
+
+            PromptDialog.show({
+                title: titulo,
+                message: html,
+                showInput: false,
+                showCancel: false,
+                showConfirm: false
+            });
+        }
+
+        function toggleCamposAdicionais(tipo) {
+            const limiteCreditoGroup = document.getElementById('limiteCreditoGroup');
+            limiteCreditoGroup.style.display = tipo === 'cartao_credito' ? 'block' : 'none';
+        }
+
+        async function salvarForma(event) {
+            event.preventDefault();
+            const form = event.target;
+            // Validação HTML5 no modal
+            if (typeof form.reportValidity === 'function' && !form.reportValidity()) {
+                showToast('Preencha os campos obrigatórios corretamente.', 'warning');
+                return;
+            }
+            const formData = new FormData(form);
+            
+            const dados = {
+                nome: formData.get('nome'),
+                tipo: formData.get('tipo'),
+                banco: formData.get('banco') || null,
+                limite_credito: formData.get('limite_credito') ? parseFloat(formData.get('limite_credito')) : null,
+                ativo: formData.get('ativo') === 'on',
+                observacao: formData.get('observacao') || null
+            };
+
+            try {
+                const url = formaEditando 
+                    ? `/api/formas-pagamento/${formaEditando.id}`
+                    : '/api/formas-pagamento';
+                
+                const method = formaEditando ? 'PUT' : 'POST';
+
+                await fetchWithLoading(url, {
+                    method,
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(dados),
+                    timeout: 10000,
+                    overlayText: 'Salvando...'
+                });
+
+                showToast(
+                    formaEditando ? 'Forma atualizada com sucesso!' : 'Forma criada com sucesso!',
+                    'success'
+                );
+                
+                PromptDialog.close();
+                formaEditando = null;
+                await carregarFormas();
+            } catch (error) {
+                console.error('Erro ao salvar forma:', error);
+                showToast(error.message || 'Erro ao salvar forma de pagamento', 'error');
+            }
+        }
+
+        function editarForma(id) {
+            const forma = formasCache.find(f => f.id === id);
+            if (forma) {
+                abrirFormulario(forma);
+            }
+        }
+
+        async function toggleForma(id) {
+            try {
+                await fetchWithLoading(`/api/formas-pagamento/${id}/toggle`, {
+                    method: 'PATCH',
+                    timeout: 10000,
+                    overlayText: 'Atualizando status...'
+                });
+
+                showToast('Status atualizado com sucesso!', 'success');
+                await carregarFormas();
+            } catch (error) {
+                console.error('Erro ao alternar status:', error);
+                showToast('Erro ao alterar status da forma', 'error');
+            }
+        }
+
+        async function confirmarExclusao(id, nome) {
+            const confirmado = await ConfirmDialog.show({
+                title: 'Confirmar Exclusão',
+                message: `Tem certeza que deseja excluir a forma de pagamento "${nome}"?\n\nEsta ação não pode ser desfeita.`,
+                confirmText: 'Excluir',
+                cancelText: 'Cancelar'
+            });
+
+            if (confirmado) {
+                await excluirForma(id);
+            }
+        }
+
+        async function excluirForma(id) {
+            try {
+                await fetchWithLoading(`/api/formas-pagamento/${id}`, {
+                    method: 'DELETE',
+                    timeout: 10000,
+                    overlayText: 'Excluindo...'
+                });
+
+                showToast('Forma de pagamento excluída com sucesso!', 'success');
+                await carregarFormas();
+            } catch (error) {
+                console.error('Erro ao excluir forma:', error);
+                const msg = (error && error.message) ? error.message : 'Erro ao excluir forma de pagamento';
+                showToast(msg, 'error');
+
+                // Se estiver em uso, oferecer opção de desativar
+                if (/não é possível excluir/i.test(msg)) {
+                    const confirmarDesativar = await ConfirmDialog.show({
+                        title: 'Forma em uso',
+                        message: 'Esta forma está sendo usada em parcelas e não pode ser excluída. Deseja desativá-la?',
+                        confirmText: 'Desativar',
+                        cancelText: 'Cancelar',
+                        variant: 'warning'
+                    });
+                    if (confirmarDesativar) {
+                        try {
+                            await toggleForma(id);
+                        } catch (_) { /* ignore */ }
+                    }
+                }
+            }
+        }
+
+        // Carregar formas ao iniciar
+        document.addEventListener('DOMContentLoaded', () => {
+            carregarFormas();
+        });
+    </script>
+</body>
+</html>

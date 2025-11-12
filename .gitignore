@@ -1,0 +1,83 @@
+# ===================================================================
+# Sistema Financeiro Pessoal - .gitignore
+# ===================================================================
+
+# --- Python ---
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+share/python-wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# --- Virtual Environments ---
+.venv/
+venv/
+ENV/
+env/
+.venv*/
+venv*/
+
+# --- IDEs ---
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# --- Dados Sensíveis ---
+.env
+.env.local
+.env.*.local
+*.db
+*.sqlite
+*.sqlite3
+data/
+backups/
+*.log
+
+# --- Testes ---
+.pytest_cache/
+.coverage
+htmlcov/
+.tox/
+.nox/
+coverage.xml
+*.cover
+*.py,cover
+
+# --- Temporários ---
+tmp/
+temp/
+*.tmp
+*.bak
+*.swp
+*~
+
+# --- Sistema ---
+Thumbs.db
+.DS_Store
+*.pid
+
+# --- Específicos do Projeto ---
+lancamentos.db
+data/*.db
+backups/*.db
+*.log

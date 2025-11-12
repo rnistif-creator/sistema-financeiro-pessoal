@@ -1,0 +1,975 @@
+<!doctype html>
+<html lang="pt-br">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Dashboard - Sistema Financeiro</title>
+  <style>
+    :root {
+      --bg: #0f172a;
+      --card: #1e293b;
+      --muted: #94a3b8;
+      --text: #e5e7eb;
+      --primary: #22d3ee;
+      --primary-strong: #06b6d4;
+      --danger: #ef4444;
+      --success: #22c55e;
+      --warning: #f59e0b;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: Inter, system-ui, sans-serif;
+      line-height: 1.6;
+      padding: 24px;
+    }
+    .container { max-width: 1200px; margin: 0 auto; }
+    .header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 32px;
+    }
+    .title { font-size: 28px; font-weight: 700; }
+    .nav-links {
+      display: flex;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+    .nav-links a {
+      padding: 8px 16px;
+      border-radius: 12px;
+      text-decoration: none;
+      color: var(--primary);
+      background: rgba(34,211,238,.07);
+      border: 1px dashed rgba(34,211,238,.25);
+      transition: all .2s ease;
+    }
+    .nav-links a:hover {
+      background: rgba(34,211,238,.12);
+      border-color: rgba(34,211,238,.35);
+    }
+    .filters {
+      background: var(--card);
+      padding: 20px;
+      border-radius: 12px;
+      margin-bottom: 24px;
+      display: flex;
+      gap: 12px;
+      align-items: end;
+    }
+    .filters > div { flex: 1; }
+    .filters label {
+      display: block;
+      font-size: 13px;
+      color: var(--muted);
+      margin-bottom: 6px;
+    }
+    .filters input {
+      width: 100%;
+      padding: 10px;
+      border-radius: 8px;
+      border: 1px solid rgba(148, 163, 184, 0.25);
+      background: rgba(15, 23, 42, 0.55);
+      color: var(--text);
+    }
+    .filters button {
+      padding: 10px 20px;
+      border-radius: 8px;
+      border: none;
+      background: var(--primary);
+      color: var(--bg);
+      font-weight: 600;
+      cursor: pointer;
+      transition: all .2s;
+    }
+    .filters button:hover {
+      background: var(--primary-strong);
+      transform: translateY(-2px);
+    }
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+      gap: 20px;
+      margin-bottom: 32px;
+    }
+    .stat-card {
+      background: var(--card);
+      padding: 24px;
+      border-radius: 12px;
+      border: 1px solid rgba(148, 163, 184, 0.1);
+    }
+    .stat-label {
+      font-size: 14px;
+      color: var(--muted);
+      margin-bottom: 8px;
+    }
+    .stat-value {
+      font-size: 32px;
+      font-weight: 700;
+    }
+    .stat-value.success { color: var(--success); }
+    .stat-value.danger { color: var(--danger); }
+    .stat-value.warning { color: var(--warning); }
+    .stat-subtext {
+      font-size: 13px;
+      color: var(--muted);
+      margin-top: 4px;
+    }
+    .charts-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+      gap: 24px;
+    }
+    .chart-card {
+      background: var(--card);
+      padding: 24px;
+      border-radius: 12px;
+      border: 1px solid rgba(148, 163, 184, 0.1);
+    }
+    .chart-title {
+      font-size: 18px;
+      font-weight: 600;
+      margin-bottom: 20px;
+    }
+    .chart-item {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 12px 0;
+      border-bottom: 1px solid rgba(148, 163, 184, 0.1);
+    }
+    .chart-item:last-child { border-bottom: none; }
+    .chart-bar-container {
+      flex: 1;
+      height: 32px;
+      background: rgba(15, 23, 42, 0.5);
+      border-radius: 6px;
+      overflow: hidden;
+      margin: 0 12px;
+    }
+    .chart-bar {
+      height: 100%;
+      background: linear-gradient(90deg, var(--primary), var(--primary-strong));
+      border-radius: 6px;
+      transition: width .3s ease;
+    }
+    .empty-state {
+      text-align: center;
+      padding: 60px 20px;
+      color: var(--muted);
+    }
+  </style>
+</head>
+<body>
+  {% include '_app_sidebar.html' %}
+  <div class="container" id="main-content">
+    <div class="header">
+      <h1 class="title">📊 Dashboard Financeiro</h1>
+      <div style="display:flex; gap:12px; align-items:center; flex-wrap:wrap;">
+        <button id="btnOpenFilters" style="padding:8px 14px; border-radius:10px; border:1px solid rgba(148,163,184,0.25); background:rgba(15,23,42,0.55); color:var(--text); cursor:pointer;">
+          🧰 Filtros
+        </button>
+        <button id="btnOpenConfig" style="padding:8px 14px; border-radius:10px; border:1px solid rgba(148,163,184,0.25); background:rgba(15,23,42,0.55); color:var(--text); cursor:pointer;">
+          ⚙️ Widgets
+        </button>
+      </div>
+    </div>
+
+      <!-- Informação do Período -->
+      <div id="infoPeriodo" style="background:linear-gradient(135deg, rgba(34,211,238,0.08), rgba(139,92,246,0.08)); border:1px solid rgba(34,211,238,0.2); border-radius:12px; padding:16px 20px; margin-bottom:24px; display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:12px;">
+        <div style="display:flex; align-items:center; gap:12px;">
+          <span style="font-size:24px;">📅</span>
+          <div>
+            <div style="font-size:13px; color:var(--muted); margin-bottom:2px;">Período analisado</div>
+            <div id="textoPeriodo" style="font-weight:600; font-size:16px; color:var(--text);">Carregando...</div>
+          </div>
+        </div>
+        <div style="display:flex; align-items:center; gap:8px; font-size:13px; color:var(--muted);">
+          <span id="tipoDataLabel">📅 Por Vencimento</span>
+        </div>
+      </div>
+
+    <!-- Sidebar de Filtros -->
+    <div id="sidebarOverlay" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.6); z-index:1110;" aria-hidden="true"></div>
+    <aside id="filterSidebar" style="position:fixed; top:0; left:0; bottom:0; width:320px; max-width:90vw; background:var(--card); border-right:1px solid rgba(148,163,184,0.15); transform:translateX(-100%); transition:transform .25s ease; z-index:1120; display:flex; flex-direction:column;">
+      <div style="display:flex; align-items:center; justify-content:space-between; padding:16px; border-bottom:1px solid rgba(148,163,184,0.12);">
+        <strong>🧰 Filtros</strong>
+        <button id="btnCloseFilters" style="background:transparent; color:var(--text); border:none; font-size:20px; cursor:pointer">✕</button>
+      </div>
+      <div style="padding:16px; overflow:auto;">
+        <div style="margin-bottom:16px;">
+          <label style="display:block; font-size:13px; color:var(--muted); margin-bottom:8px;">Período Rápido</label>
+          <div style="display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:8px;">
+            <button data-action="aplicarPeriodoRapido" data-args='"mes_atual"' class="btn-sb">Mês Atual</button>
+            <button data-action="aplicarPeriodoRapido" data-args='"mes_anterior"' class="btn-sb">Mês Anterior</button>
+            <button data-action="aplicarPeriodoRapido" data-args='"ultimos_30"' class="btn-sb">Últimos 30d</button>
+            <button data-action="aplicarPeriodoRapido" data-args='"ultimos_90"' class="btn-sb">Últimos 90d</button>
+          </div>
+        </div>
+        <div style="display:flex; flex-direction:column; gap:12px;">
+          <div>
+            <label style="display:block; font-size:13px; color:var(--muted); margin-bottom:6px;">Filtrar por</label>
+            <select id="tipoData" style="width:100%; padding:10px; border-radius:8px; border:1px solid rgba(148,163,184,0.25); background:rgba(15,23,42,0.55); color:var(--text);">
+              <option value="lancamento">📝 Data de Lançamento</option>
+              <option value="vencimento" selected>📅 Data de Vencimento</option>
+              <option value="pagamento">💰 Data de Pagamento</option>
+            </select>
+          </div>
+          <div>
+            <label style="display:block; font-size:13px; color:var(--muted); margin-bottom:6px;">Data Início</label>
+            <input type="date" id="dataInicio" style="width:100%; padding:10px; border-radius:8px; border:1px solid rgba(148,163,184,0.25); background:rgba(15,23,42,0.55); color:var(--text);">
+          </div>
+          <div>
+            <label style="display:block; font-size:13px; color:var(--muted); margin-bottom:6px;">Data Fim</label>
+            <input type="date" id="dataFim" style="width:100%; padding:10px; border-radius:8px; border:1px solid rgba(148,163,184,0.25); background:rgba(15,23,42,0.55); color:var(--text);">
+          </div>
+          <div>
+            <label style="display:block; font-size:13px; color:var(--muted); margin-bottom:6px;">Natureza</label>
+            <select id="filtroNatureza" style="width:100%; padding:10px; border-radius:8px; border:1px solid rgba(148,163,184,0.25); background:rgba(15,23,42,0.55); color:var(--text);">
+              <option value="">Todas</option>
+              <option value="receita">📈 Receitas</option>
+              <option value="despesa">📉 Despesas</option>
+            </select>
+          </div>
+          <div>
+            <label style="display:block; font-size:13px; color:var(--muted); margin-bottom:6px;">Tipos de Lançamento</label>
+            <select id="filtroTipos" multiple style="height:100px; width:100%; padding:10px; border-radius:8px; border:1px solid rgba(148,163,184,0.25); background:rgba(15,23,42,0.55); color:var(--text);">
+              <option value="">Todos os tipos</option>
+            </select>
+          </div>
+        </div>
+        <div style="display:flex; gap:8px; margin-top:16px;">
+          <button data-action="carregarDashboard" style="flex:1; padding:10px 14px; border-radius:8px; border:none; background:var(--primary); color:var(--bg); font-weight:700; cursor:pointer;">Aplicar</button>
+          <button data-action="abrirTabelaAnual" style="flex:1; padding:10px 14px; border-radius:8px; border:none; background: linear-gradient(180deg, #8b5cf6, #7c3aed); color:#fff; font-weight:700; cursor:pointer;">Tabela Anual</button>
+        </div>
+      </div>
+    </aside>
+
+    <div class="stats-grid" id="statsGrid"></div>
+    <div class="charts-grid" id="chartsGrid"></div>
+  </div>
+
+  <!-- Modal Configuração de Widgets -->
+  <div id="modalConfigWidgets" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.85); z-index:2000; overflow:auto; padding:40px 20px;">
+    <div style="max-width:600px; margin:0 auto; background:var(--card); border-radius:16px; padding:32px; position:relative;">
+  <button data-action="fecharConfigWidgets" style="position:absolute; top:16px; right:16px; background:transparent; border:none; color:var(--text); font-size:24px; cursor:pointer; padding:8px 12px; border-radius:8px; transition:background .2s;">✕</button>
+      
+      <h2 style="margin-bottom:8px; font-size:24px;">⚙️ Configurar Widgets</h2>
+      <p style="color:var(--muted); margin-bottom:24px; font-size:14px;">Escolha quais informações deseja visualizar no seu dashboard</p>
+      
+      <div style="display:flex; flex-direction:column; gap:16px;">
+        <!-- KPIs -->
+        <div style="padding:16px; background:rgba(34,211,238,0.05); border-radius:12px; border:1px solid rgba(34,211,238,0.15);">
+          <label style="display:flex; align-items:center; gap:12px; cursor:pointer;">
+            <input type="checkbox" id="widget-kpis" checked style="width:20px; height:20px; cursor:pointer; accent-color:var(--primary);">
+            <div>
+              <div style="font-weight:600; font-size:15px;">📊 KPIs Principais</div>
+              <div style="color:var(--muted); font-size:13px;">Receitas, Despesas e Saldo do período</div>
+            </div>
+          </label>
+        </div>
+        
+        <!-- Top Formas de Pagamento -->
+        <div style="padding:16px; background:rgba(139,92,246,0.05); border-radius:12px; border:1px solid rgba(139,92,246,0.15);">
+          <label style="display:flex; align-items:center; gap:12px; cursor:pointer;">
+            <input type="checkbox" id="widget-top-formas" checked style="width:20px; height:20px; cursor:pointer; accent-color:var(--primary);">
+            <div>
+              <div style="font-weight:600; font-size:15px;">💳 Top Formas de Pagamento</div>
+              <div style="color:var(--muted); font-size:13px;">Formas mais usadas com variação mensal</div>
+            </div>
+          </label>
+        </div>
+
+        <!-- Gráfico Pizza Despesas -->
+        <div style="padding:16px; background:rgba(239,68,68,0.05); border-radius:12px; border:1px solid rgba(239,68,68,0.15);">
+          <label style="display:flex; align-items:center; gap:12px; cursor:pointer;">
+            <input type="checkbox" id="widget-pie-despesas" checked style="width:20px; height:20px; cursor:pointer; accent-color:var(--danger);">
+            <div>
+              <div style="font-weight:600; font-size:15px;">📉 Distribuição de Despesas</div>
+              <div style="color:var(--muted); font-size:13px;">Gráfico de pizza por tipo de despesa</div>
+            </div>
+          </label>
+        </div>
+
+        <!-- Gráfico Pizza Receitas -->
+        <div style="padding:16px; background:rgba(34,197,94,0.05); border-radius:12px; border:1px solid rgba(34,197,94,0.15);">
+          <label style="display:flex; align-items:center; gap:12px; cursor:pointer;">
+            <input type="checkbox" id="widget-pie-receitas" checked style="width:20px; height:20px; cursor:pointer; accent-color:var(--success);">
+            <div>
+              <div style="font-weight:600; font-size:15px;">📈 Distribuição de Receitas</div>
+              <div style="color:var(--muted); font-size:13px;">Gráfico de pizza por tipo de receita</div>
+            </div>
+          </label>
+        </div>
+
+        <!-- Gráfico Pizza Formas de Pagamento (Pagos) -->
+        <div style="padding:16px; background:rgba(6,182,212,0.05); border-radius:12px; border:1px solid rgba(6,182,212,0.15);">
+          <label style="display:flex; align-items:center; gap:12px; cursor:pointer;">
+            <input type="checkbox" id="widget-pie-formas" checked style="width:20px; height:20px; cursor:pointer; accent-color:#06b6d4;">
+            <div>
+              <div style="font-weight:600; font-size:15px;">💳 Distribuição por Forma de Pagamento</div>
+              <div style="color:var(--muted); font-size:13px;">Com base em parcelas pagas no período</div>
+            </div>
+          </label>
+        </div>
+
+        <!-- Gráfico Evolução -->
+        <div style="padding:16px; background:rgba(139,92,246,0.05); border-radius:12px; border:1px solid rgba(139,92,246,0.15);">
+          <label style="display:flex; align-items:center; gap:12px; cursor:pointer;">
+            <input type="checkbox" id="widget-evolucao" checked style="width:20px; height:20px; cursor:pointer; accent-color:#8b5cf6;">
+            <div>
+              <div style="font-weight:600; font-size:15px;">📊 Evolução Mensal</div>
+              <div style="color:var(--muted); font-size:13px;">Gráfico de barras dos últimos 6 meses</div>
+            </div>
+          </label>
+        </div>
+
+        <!-- Análise Hierárquica -->
+        <div style="padding:16px; background:rgba(245,158,11,0.05); border-radius:12px; border:1px solid rgba(245,158,11,0.15);">
+          <label style="display:flex; align-items:center; gap:12px; cursor:pointer;">
+            <input type="checkbox" id="widget-hierarquia" checked style="width:20px; height:20px; cursor:pointer; accent-color:#f59e0b;">
+            <div>
+              <div style="font-weight:600; font-size:15px;">🌳 Análise Hierárquica</div>
+              <div style="color:var(--muted); font-size:13px;">Tipos e Subtipos expansíveis</div>
+            </div>
+          </label>
+        </div>
+
+        <!-- Botão Salvar -->
+        <button data-action="salvarConfigWidgets" style="width:100%; padding:14px; border-radius:10px; border:none; background:var(--primary); color:var(--bg); font-weight:700; font-size:15px; cursor:pointer; margin-top:8px; transition:all .2s;">
+          💾 Salvar Preferências
+        </button>
+
+        <!-- Botão Restaurar Padrão -->
+        <button data-action="restaurarPadrao" style="width:100%; padding:12px; border-radius:10px; border:1px solid rgba(148,163,184,0.3); background:transparent; color:var(--muted); font-weight:600; font-size:14px; cursor:pointer; transition:all .2s;">
+          🔄 Restaurar Padrão
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal Tabela Anual -->
+  <div id="modalTabelaAnual" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.85); z-index:1000; overflow:auto; padding:40px 20px;">
+    <div style="max-width:1400px; margin:0 auto; background:var(--card); border-radius:16px; padding:32px; position:relative;">
+  <button data-action="fecharTabelaAnual" style="position:absolute; top:16px; right:16px; background:transparent; border:none; color:var(--text); font-size:24px; cursor:pointer; padding:8px 12px; border-radius:8px; transition:background .2s;">✕</button>
+      
+      <h2 style="margin-bottom:24px; font-size:24px;">📅 Resumo Anual por Tipo</h2>
+      
+      <div style="margin-bottom:20px; display:flex; gap:20px; align-items:center; flex-wrap:wrap; justify-content:space-between;">
+        <div style="display:flex; gap:20px; align-items:center; flex-wrap:wrap;">
+          <div style="display:flex; gap:8px; align-items:center;">
+            <label>Ano:</label>
+            <select id="anoTabela" onchange="carregarTabelaAnual()" style="padding:8px 12px; background:var(--bg); color:var(--text); border:1px solid rgba(148,163,184,0.3); border-radius:8px; font-size:14px;">
+              <!-- Opções serão preenchidas via JS -->
+            </select>
+          </div>
+          
+          <div style="display:flex; gap:8px; align-items:center;">
+            <label>Considerar data de:</label>
+            <select id="tipoDataTabela" onchange="carregarTabelaAnual()" style="padding:8px 12px; background:var(--bg); color:var(--text); border:1px solid rgba(148,163,184,0.3); border-radius:8px; font-size:14px;">
+              <option value="vencimento">📅 Vencimento</option>
+              <option value="pagamento">💰 Pagamento</option>
+            </select>
+          </div>
+        </div>
+        
+        <button data-action="exportarTabelaPDF" style="padding:10px 20px; background:linear-gradient(135deg, #ef4444, #dc2626); color:white; border:none; border-radius:10px; font-weight:700; cursor:pointer; display:flex; align-items:center; gap:8px; transition:all .2s; box-shadow:0 4px 12px rgba(239,68,68,0.3);">
+          📄 Exportar PDF
+        </button>
+      </div>
+      
+      <div id="tabelaAnualContainer" style="overflow-x:auto;">
+        <!-- Tabela será inserida aqui -->
+      </div>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0"></script>
+  <script{%- if csp_nonce %} nonce="{{ csp_nonce }}"{%- endif %}>
+    // API_BASE, brl, todayISO agora vêm de config.js global
+    let pieDespesasChart = null;
+    let pieReceitasChart = null;
+    let pieFormasChart = null;
+    let barEvolucaoChart = null;
+
+    // ========== CONFIGURAÇÃO DE WIDGETS ==========
+    const WIDGETS_DEFAULT = {
+      kpis: true,
+      topFormas: true,
+      pieDespesas: true,
+      pieReceitas: true,
+      evolucao: true,
+      pieFormas: true,
+      hierarquia: true
+    };
+
+    function getWidgetsConfig() {
+      const stored = localStorage.getItem('dashboardWidgets');
+      return stored ? JSON.parse(stored) : { ...WIDGETS_DEFAULT };
+    }
+
+    function setWidgetsConfig(config) {
+      localStorage.setItem('dashboardWidgets', JSON.stringify(config));
+    }
+
+    function abrirConfigWidgets() {
+      const config = getWidgetsConfig();
+      document.getElementById('widget-kpis').checked = config.kpis;
+      document.getElementById('widget-top-formas').checked = config.topFormas;
+      document.getElementById('widget-pie-despesas').checked = config.pieDespesas;
+      document.getElementById('widget-pie-receitas').checked = config.pieReceitas;
+      document.getElementById('widget-evolucao').checked = config.evolucao;
+      document.getElementById('widget-pie-formas').checked = config.pieFormas;
+      document.getElementById('widget-hierarquia').checked = config.hierarquia;
+      document.getElementById('modalConfigWidgets').style.display = 'block';
+    }
+
+    function fecharConfigWidgets() {
+      document.getElementById('modalConfigWidgets').style.display = 'none';
+    }
+
+    function salvarConfigWidgets() {
+      const config = {
+        kpis: document.getElementById('widget-kpis').checked,
+        topFormas: document.getElementById('widget-top-formas').checked,
+        pieDespesas: document.getElementById('widget-pie-despesas').checked,
+        pieReceitas: document.getElementById('widget-pie-receitas').checked,
+        evolucao: document.getElementById('widget-evolucao').checked,
+        pieFormas: document.getElementById('widget-pie-formas').checked,
+        hierarquia: document.getElementById('widget-hierarquia').checked
+      };
+      setWidgetsConfig(config);
+      Toast.success('✅ Preferências salvas!');
+      fecharConfigWidgets();
+      carregarDashboard();
+    }
+
+    function restaurarPadrao() {
+      setWidgetsConfig(WIDGETS_DEFAULT);
+      document.getElementById('widget-kpis').checked = true;
+      document.getElementById('widget-top-formas').checked = true;
+      document.getElementById('widget-pie-despesas').checked = true;
+      document.getElementById('widget-pie-receitas').checked = true;
+      document.getElementById('widget-evolucao').checked = true;
+      document.getElementById('widget-pie-formas').checked = true;
+      document.getElementById('widget-hierarquia').checked = true;
+      Toast.info('🔄 Configurações restauradas para o padrão');
+    }
+
+    document.getElementById('btnOpenConfig').addEventListener('click', abrirConfigWidgets);
+    document.getElementById('modalConfigWidgets').addEventListener('click', (e) => {
+      if (e.target.id === 'modalConfigWidgets') fecharConfigWidgets();
+    });
+    function firstDayOfMonth(){ const t=new Date(); return new Date(t.getFullYear(), t.getMonth(), 1).toISOString().split('T')[0]; }
+    function lastDayOfMonth(){ const t=new Date(); return new Date(t.getFullYear(), t.getMonth()+1, 0).toISOString().split('T')[0]; }
+    function firstDayOfPreviousMonth(){ const t=new Date(); return new Date(t.getFullYear(), t.getMonth()-1, 1).toISOString().split('T')[0]; }
+    function lastDayOfPreviousMonth(){ const t=new Date(); return new Date(t.getFullYear(), t.getMonth(), 0).toISOString().split('T')[0]; }
+    function addDays(date, days){ const r=new Date(date); r.setDate(r.getDate()+days); return r.toISOString().split('T')[0]; }
+
+    function aplicarPeriodoRapido(periodo){ const hoje=new Date(); let inicio,fim; switch(periodo){ case 'mes_atual': inicio=firstDayOfMonth(); fim=lastDayOfMonth(); break; case 'mes_anterior': inicio=firstDayOfPreviousMonth(); fim=lastDayOfPreviousMonth(); break; case 'ultimos_30': inicio=addDays(hoje,-30); fim=todayISO(); break; case 'ultimos_90': inicio=addDays(hoje,-90); fim=todayISO(); break; default: inicio=firstDayOfMonth(); fim=todayISO(); } document.getElementById('dataInicio').value=inicio; document.getElementById('dataFim').value=fim; carregarDashboard(); }
+
+    async function carregarTipos(){
+      try{
+        const tipos = await fetchWithLoading(`${API_BASE}/api/tipos`, { timeout: 15000 });
+        const select=document.getElementById('filtroTipos');
+        while(select.options.length>1){ select.remove(1); }
+        const receitas=tipos.filter(t=>t.natureza==='receita');
+        const despesas=tipos.filter(t=>t.natureza==='despesa');
+        if(receitas.length>0){ const g=document.createElement('optgroup'); g.label='📈 Receitas'; receitas.forEach(t=>{ const o=document.createElement('option'); o.value=t.id; o.textContent=t.nome; g.appendChild(o); }); select.appendChild(g); }
+        if(despesas.length>0){ const g=document.createElement('optgroup'); g.label='📉 Despesas'; despesas.forEach(t=>{ const o=document.createElement('option'); o.value=t.id; o.textContent=t.nome; g.appendChild(o); }); select.appendChild(g); }
+      }catch(err){ console.error('Erro ao carregar tipos:', err); Toast.error('Falha ao carregar tipos.'); }
+    }
+
+    // Sidebar open/close helpers
+    function toggleSidebar(open){
+      const sb=document.getElementById('filterSidebar');
+      const ov=document.getElementById('sidebarOverlay');
+      if(open){ sb.style.transform='translateX(0)'; ov.style.display='block'; ov.setAttribute('aria-hidden','false'); }
+      else { sb.style.transform='translateX(-100%)'; ov.style.display='none'; ov.setAttribute('aria-hidden','true'); }
+    }
+    document.getElementById('btnOpenFilters').addEventListener('click', ()=> toggleSidebar(true));
+    document.getElementById('btnCloseFilters').addEventListener('click', ()=> toggleSidebar(false));
+    document.getElementById('sidebarOverlay').addEventListener('click', ()=> toggleSidebar(false));
+    document.addEventListener('keydown', (e)=>{ if(e.key==='Escape') toggleSidebar(false); });
+
+  document.getElementById('dataInicio').value = firstDayOfMonth();
+  document.getElementById('dataFim').value = lastDayOfMonth();
+    // Default: usar Data de Vencimento
+    document.getElementById('tipoData').value = 'vencimento';
+
+      function atualizarInfoPeriodo(dataInicio, dataFim, tipoData) {
+        const formatarData = (dataISO) => {
+          const [ano, mes, dia] = dataISO.split('-');
+          return `${dia}/${mes}/${ano}`;
+        };
+      
+        const inicio = formatarData(dataInicio);
+        const fim = formatarData(dataFim);
+        const textoPeriodo = document.getElementById('textoPeriodo');
+        const tipoDataLabel = document.getElementById('tipoDataLabel');
+      
+        // Calcular quantidade de dias
+        const dataInicioObj = new Date(dataInicio);
+        const dataFimObj = new Date(dataFim);
+        const dias = Math.ceil((dataFimObj - dataInicioObj) / (1000 * 60 * 60 * 24)) + 1;
+      
+        textoPeriodo.textContent = `${inicio} até ${fim} (${dias} ${dias === 1 ? 'dia' : 'dias'})`;
+      
+        // Atualizar label do tipo de data
+        const labels = {
+          'lancamento': '📝 Por Data de Lançamento',
+          'vencimento': '📅 Por Data de Vencimento',
+          'pagamento': '💰 Por Data de Pagamento'
+        };
+        tipoDataLabel.textContent = labels[tipoData] || labels['vencimento'];
+      }
+
+    async function carregarDashboard(){
+      const tipoData=document.getElementById('tipoData').value;
+      const dataInicio=document.getElementById('dataInicio').value;
+      const dataFim=document.getElementById('dataFim').value;
+      const natureza=document.getElementById('filtroNatureza').value;
+      const selectTipos=document.getElementById('filtroTipos');
+      const tiposSelecionados=Array.from(selectTipos.selectedOptions).map(o=>o.value).filter(v=>v!=='');
+        atualizarInfoPeriodo(dataInicio, dataFim, tipoData);
+      try{
+        let url=`${API_BASE}/api/dashboard?tipo_data=${tipoData}&data_inicio=${dataInicio}&data_fim=${dataFim}`;
+        if(natureza) url+=`&natureza=${natureza}`;
+        if(tiposSelecionados.length>0) url+=`&tipos=${tiposSelecionados.join(',')}`;
+        const data = await fetchWithLoading(url, { timeout: 20000 }, 'Carregando dashboard...');
+        const dias=Math.max(1, Math.ceil((new Date(dataFim)-new Date(dataInicio))/(1000*60*60*24))+1);
+        const prevEnd=new Date(dataInicio); prevEnd.setDate(prevEnd.getDate()-1);
+        const prevStart=new Date(prevEnd); prevStart.setDate(prevStart.getDate()-(dias-1));
+        const prevIniISO=prevStart.toISOString().split('T')[0];
+        const prevFimISO=prevEnd.toISOString().split('T')[0];
+        let tendencias=null;
+  try{ let urlPrev=`${API_BASE}/api/dashboard?tipo_data=${tipoData}&data_inicio=${prevIniISO}&data_fim=${prevFimISO}`; if(natureza) urlPrev+=`&natureza=${natureza}`; if(tiposSelecionados.length>0) urlPrev+=`&tipos=${tiposSelecionados.join(',')}`; const dPrev = await fetchWithLoading(urlPrev, { timeout: 12000 }); tendencias=calcularTendencias(data.totalizadores, dPrev.totalizadores); }catch(e){ console.warn('Falha ao calcular tendências', e); }
+        renderStats(data.totalizadores, data.periodo, tendencias);
+        await renderCharts(data, { tipoData, natureza, tiposSelecionados });
+      }catch(err){ console.error(err); document.getElementById('statsGrid').innerHTML = '<div class="empty-state">Erro ao carregar dados</div>'; }
+    }
+
+    function calcularTendencias(atual, anterior){ const varPerc=(a,b)=>{ if(!b||b===0) return a?100:0; return ((a-b)/Math.abs(b))*100; }; return { rec: varPerc(atual.receitas, anterior.receitas), desp: varPerc(atual.despesas, anterior.despesas), saldo: varPerc(atual.saldo, anterior.saldo) }; }
+    function trendBadge(valor){ if(valor===null||valor===undefined) return ''; const arrow=valor>=0?'▲':'▼'; const color=valor>=0?'var(--success)':'var(--danger)'; return `<span style="color:${color}; font-weight:600; margin-left:8px;">${arrow} ${Math.abs(valor).toFixed(1)}%</span>`; }
+    function renderStats(totalizadores, periodo, tendencias){ 
+      const config = getWidgetsConfig();
+      if (!config.kpis) {
+        document.getElementById('statsGrid').innerHTML = '';
+        return;
+      }
+      const saldoClass=totalizadores.saldo>=0?'success':'danger'; const saldoIcon=totalizadores.saldo>=0?'📈':'📉'; let tipoDataLabel='Lançamento', tipoDataIcon='📝'; if(periodo && periodo.tipo_data==='vencimento'){ tipoDataLabel='Vencimento'; tipoDataIcon='📅'; } else if(periodo && periodo.tipo_data==='pagamento'){ tipoDataLabel='Pagamento'; tipoDataIcon='💰'; } document.getElementById('statsGrid').innerHTML = `
+        <div class=\"stat-card\">
+          <div class=\"stat-label\">💰 Total de Receitas</div>
+          <div class=\"stat-value success\">${brl.format(totalizadores.receitas)}</div>
+          <div class=\"stat-subtext\">${totalizadores.qtd_receitas} lançamento(s) ${tendencias ? trendBadge(tendencias.rec) : ''}</div>
+        </div>
+        <div class=\"stat-card\">
+          <div class=\"stat-label\">💸 Total de Despesas</div>
+          <div class=\"stat-value danger\">${brl.format(totalizadores.despesas)}</div>
+          <div class=\"stat-subtext\">${totalizadores.qtd_despesas} lançamento(s) ${tendencias ? trendBadge(tendencias.desp) : ''}</div>
+        </div>
+        <div class=\"stat-card\">
+          <div class=\"stat-label\">${saldoIcon} Saldo do Período</div>
+          <div class=\"stat-value ${saldoClass}\">${brl.format(totalizadores.saldo)}</div>
+          <div class=\"stat-subtext\">${tipoDataIcon} Por data de ${tipoDataLabel} ${tendencias ? trendBadge(tendencias.saldo) : ''}</div>
+        </div>`; }
+    
+    async function renderTopFormas() {
+      const config = getWidgetsConfig();
+      const grid = document.getElementById('chartsGrid');
+      
+      if (!config.topFormas) return;
+      
+      try {
+        const dataInicio = document.getElementById('dataInicio').value;
+        const dataFim = document.getElementById('dataFim').value;
+        const url = `${API_BASE}/api/dashboard/top-formas?data_inicio=${dataInicio}&data_fim=${dataFim}&limit=3`;
+        
+        const dados = await fetchWithLoading(url, { timeout: 10000 });
+        
+        if (!dados.top_formas || dados.top_formas.length === 0) {
+          return;
+        }
+        
+        let html = '<div class="chart-card" style="grid-column: 1 / -1;"><h3 class="chart-title">💳 Formas de Pagamento Mais Usadas</h3><div style="display:flex; flex-direction:column; gap:12px; margin-top:16px;">';
+        
+        dados.top_formas.forEach((forma, idx) => {
+          const variacaoColor = forma.variacao_mes_anterior >= 0 ? 'var(--success)' : 'var(--danger)';
+          const variacaoIcon = forma.variacao_mes_anterior >= 0 ? '▲' : '▼';
+          const posicao = ['🥇', '🥈', '🥉'][idx] || '🏅';
+          
+          html += `
+            <div style="background:rgba(148,163,184,0.05); border-radius:10px; padding:16px; display:flex; align-items:center; justify-content:space-between; gap:16px; border:1px solid rgba(148,163,184,0.1);">
+              <div style="display:flex; align-items:center; gap:12px; flex:1;">
+                <span style="font-size:24px;">${posicao}</span>
+                <div>
+                  <div style="font-weight:600; font-size:15px;">${forma.forma_nome}</div>
+                  <div style="color:var(--muted); font-size:13px;">${forma.quantidade_pagamentos} pagamento(s)</div>
+                </div>
+              </div>
+              <div style="text-align:right;">
+                <div style="font-weight:700; font-size:18px; color:var(--primary);">${brl.format(forma.total_pago)}</div>
+                <div style="font-size:13px; color:${variacaoColor}; font-weight:600;">
+                  ${variacaoIcon} ${Math.abs(forma.variacao_mes_anterior).toFixed(1)}% vs mês anterior
+                </div>
+              </div>
+              <a href="/historico-pagamentos?forma=${forma.forma_id}" style="padding:8px 12px; border-radius:8px; background:rgba(34,211,238,0.1); color:var(--primary); text-decoration:none; font-size:13px; font-weight:600; border:1px solid rgba(34,211,238,0.2); transition:all .2s;" onmouseover="this.style.background='rgba(34,211,238,0.15)'" onmouseout="this.style.background='rgba(34,211,238,0.1)'">Ver histórico</a>
+            </div>
+          `;
+        });
+        
+        html += '</div></div>';
+        
+        // Inserir no início do chartsGrid
+        const temp = document.createElement('div');
+        temp.innerHTML = html;
+        grid.insertBefore(temp.firstElementChild, grid.firstChild);
+        
+      } catch (error) {
+        console.warn('Falha ao carregar top formas:', error);
+      }
+    }
+
+    async function renderCharts(data, filtros){
+      const config = getWidgetsConfig();
+      const grid=document.getElementById('chartsGrid');
+      grid.innerHTML='';
+      const cards=[];
+      
+      // Top Formas será inserido dinamicamente antes dos outros cards
+      if (config.topFormas) {
+        await renderTopFormas();
+      }
+      
+      if (config.pieDespesas) {
+        cards.push(`<div class=\"chart-card\"><h3 class=\"chart-title\">Distribuição de Despesas por Tipo</h3><canvas id=\"pieDespesas\" height=\"220\"></canvas></div>`);
+      }
+      if (config.pieReceitas) {
+        cards.push(`<div class=\"chart-card\"><h3 class=\"chart-title\">Distribuição de Receitas por Tipo</h3><canvas id=\"pieReceitas\" height=\"220\"></canvas></div>`);
+      }
+      if (config.pieFormas) {
+        cards.push(`<div class=\"chart-card\"><h3 class=\"chart-title\">Distribuição por Forma de Pagamento (Pagos)</h3><canvas id=\"pieFormasPagamento\" height=\"220\"></canvas><div id=\"pieFormasInfo\" style=\"font-size:12px; color:var(--muted); margin-top:8px;\"></div></div>`);
+      }
+      if (config.evolucao) {
+        cards.push(`<div class=\"chart-card\" style=\"grid-column: 1 / -1;\"><h3 class=\"chart-title\">Evolução Mensal (últimos 6 meses)</h3><canvas id=\"barEvolucao\" height=\"90\"></canvas></div>`);
+      }
+      if (config.hierarquia) {
+        cards.push(`<div class=\"chart-card\" style=\"grid-column: 1 / -1;\"><h3 class=\"chart-title\">🌳 Análise Hierárquica - Tipos e Subtipos</h3><div id=\"analiseHierarquica\"></div></div>`);
+      }
+      
+      grid.innerHTML += cards.join('');
+  if(pieDespesasChart) pieDespesasChart.destroy(); if(pieReceitasChart) pieReceitasChart.destroy(); if(pieFormasChart) pieFormasChart.destroy(); if(barEvolucaoChart) barEvolucaoChart.destroy();
+      const palette=['#22c55e','#84cc16','#eab308','#f59e0b','#f97316','#ef4444','#ec4899','#a855f7','#6366f1','#06b6d4','#14b8a6','#10b981'];
+      const despesasLabels=(data.despesas_por_tipo||[]).map(i=>i.nome); const despesasData=(data.despesas_por_tipo||[]).map(i=>i.total);
+      const receitasLabels=(data.receitas_por_tipo||[]).map(i=>i.nome); const receitasData=(data.receitas_por_tipo||[]).map(i=>i.total);
+      
+      if (config.pieDespesas) {
+        const pieCtx1=document.getElementById('pieDespesas');
+        if(pieCtx1 && despesasData.length>0){ pieDespesasChart=new Chart(pieCtx1,{ type:'doughnut', data:{ labels:despesasLabels, datasets:[{ data:despesasData, backgroundColor:palette }] }, options:{ plugins:{ legend:{ position:'bottom', labels:{ color:'#e5e7eb' } } } } }); } else if(pieCtx1){ pieCtx1.outerHTML='<div class="empty-state">Sem dados de despesas no período</div>'; }
+      }
+      
+      if (config.pieReceitas) {
+        const pieCtx2=document.getElementById('pieReceitas');
+        if(pieCtx2 && receitasData.length>0){ pieReceitasChart=new Chart(pieCtx2,{ type:'doughnut', data:{ labels:receitasLabels, datasets:[{ data:receitasData, backgroundColor:palette }] }, options:{ plugins:{ legend:{ position:'bottom', labels:{ color:'#e5e7eb' } } } } }); } else if(pieCtx2){ pieCtx2.outerHTML='<div class="empty-state">Sem dados de receitas no período</div>'; }
+      }
+      
+      if (config.evolucao) {
+        try{ let urlEv=`${API_BASE}/api/dashboard/evolucao?meses=6&tipo_data=${filtros.tipoData}`; if(filtros.natureza) urlEv+=`&natureza=${filtros.natureza}`; if(filtros.tiposSelecionados&&filtros.tiposSelecionados.length) urlEv+=`&tipos=${filtros.tiposSelecionados.join(',')}`; const ev = await fetchWithLoading(urlEv, { timeout: 15000 }); const ctx=document.getElementById('barEvolucao'); if(ctx){ const labels=ev.labels.map(m=>m.substring(5,7)+'/'+m.substring(2,4)); barEvolucaoChart=new Chart(ctx,{ type:'bar', data:{ labels, datasets:[ { label:'Receitas', data:ev.receitas, backgroundColor:'rgba(34,197,94,0.6)', borderColor:'#22c55e', borderWidth:1 }, { label:'Despesas', data:ev.despesas, backgroundColor:'rgba(239,68,68,0.6)', borderColor:'#ef4444', borderWidth:1 } ] }, options:{ responsive:true, scales:{ x:{ ticks:{ color:'#94a3b8' } }, y:{ ticks:{ color:'#94a3b8', callback:(v)=> brl.format(v) } } }, plugins:{ legend:{ labels:{ color:'#e5e7eb' } }, tooltip:{ callbacks:{ label:(ctx)=> `${ctx.dataset.label}: ${brl.format(ctx.parsed.y)}` } } } } }); } }catch(e){ console.warn('Falha ao carregar evolução', e); }
+      }
+      
+      if (config.pieFormas) {
+        try {
+          const dataInicio = document.getElementById('dataInicio').value;
+          const dataFim = document.getElementById('dataFim').value;
+          // Se natureza estiver vazia, priorizar despesas para este gráfico
+          const natureza = filtros.natureza || 'despesa';
+          const urlFp = `${API_BASE}/api/parcelas/pagas?data_inicio=${dataInicio}&data_fim=${dataFim}&tipo=${natureza}&limit=10000`;
+          const resp = await fetchWithLoading(urlFp, { timeout: 15000 });
+          const parcelas = (resp && resp.parcelas) ? resp.parcelas : [];
+          const mapa = new Map();
+          for (const p of parcelas) {
+            const nome = (p.forma_pagamento && p.forma_pagamento.nome) ? p.forma_pagamento.nome : 'Sem forma';
+            const valorBase = (p.valor_pago != null) ? p.valor_pago : p.valor;
+            mapa.set(nome, (mapa.get(nome) || 0) + (valorBase || 0));
+          }
+          const labels = Array.from(mapa.keys());
+          const values = Array.from(mapa.values());
+          const ctx = document.getElementById('pieFormasPagamento');
+          const info = document.getElementById('pieFormasInfo');
+          if (ctx && values.length > 0) {
+            pieFormasChart = new Chart(ctx, {
+              type: 'doughnut',
+              data: { labels, datasets: [{ data: values, backgroundColor: palette }] },
+              options: { plugins: { legend: { position: 'bottom', labels: { color: '#e5e7eb' } } } }
+            });
+            const total = values.reduce((a,b)=>a+b,0);
+            const tipoLabel = natureza === 'receita' ? 'receitas' : 'despesas';
+            if (info) info.textContent = `Baseado em parcelas pagas (${tipoLabel}) por data de pagamento. Total: ${brl.format(total)}`;
+          } else if (ctx) {
+            ctx.outerHTML = '<div class="empty-state">Sem pagamentos no período</div>';
+            if (info) info.textContent = '';
+          }
+        } catch (e) {
+          console.warn('Falha ao carregar formas de pagamento', e);
+        }
+      }
+      
+      if (config.hierarquia) {
+        carregarAnaliseHierarquica(filtros);
+      }
+    }
+
+    async function carregarAnaliseHierarquica(filtros) {
+      const container = document.getElementById('analiseHierarquica');
+      if (!container) return;
+      
+      try {
+        container.innerHTML = '<p style="text-align:center; padding:20px; color:var(--muted);">Carregando análise...</p>';
+        
+        const dataInicio = document.getElementById('dataInicio').value;
+        const dataFim = document.getElementById('dataFim').value;
+        let url = `${API_BASE}/api/dashboard/por-tipo-subtipo?tipo_data=${filtros.tipoData}&data_inicio=${dataInicio}&data_fim=${dataFim}`;
+        if (filtros.natureza) url += `&natureza=${filtros.natureza}`;
+        
+        const dados = await fetchWithLoading(url, { timeout: 15000 });
+        renderAnaliseHierarquica(dados, container);
+      } catch (error) {
+        console.error(error);
+        container.innerHTML = '<div class="empty-state">Erro ao carregar análise hierárquica</div>';
+      }
+    }
+
+    function renderAnaliseHierarquica(dados, container) {
+      if (!dados.tipos || dados.tipos.length === 0) {
+        container.innerHTML = '<div class="empty-state">Sem dados para o período selecionado</div>';
+        return;
+      }
+      
+      let html = '<div style="display:flex; flex-direction:column; gap:12px;">';
+      
+      dados.tipos.forEach(tipo => {
+        const hasSubtipos = tipo.subtipos && tipo.subtipos.length > 0;
+        const hasSemSubtipo = tipo.sem_subtipo && tipo.sem_subtipo.total > 0;
+        const temDetalhes = hasSubtipos || hasSemSubtipo;
+        const tipoId = `tipo-${tipo.tipo_id}`;
+        const isReceita = tipo.tipo_natureza === 'receita';
+        const corPrimaria = isReceita ? 'var(--success)' : 'var(--danger)';
+        const icone = isReceita ? '📈' : '📉';
+        
+        html += `
+          <div style="background:var(--card); border-radius:10px; border:1px solid rgba(148,163,184,0.15); overflow:hidden;">
+            <div 
+              onclick="${temDetalhes ? `toggleHierarquia('${tipoId}')` : ''}" 
+              style="display:flex; align-items:center; justify-content:space-between; padding:16px; cursor:${temDetalhes ? 'pointer' : 'default'}; transition:background .2s;"
+              onmouseover="${temDetalhes ? `this.style.background='rgba(148,163,184,0.05)'` : ''}"
+              onmouseout="${temDetalhes ? `this.style.background='transparent'` : ''}"
+            >
+              <div style="display:flex; align-items:center; gap:12px; flex:1;">
+                ${temDetalhes ? `<span id="chevron-${tipoId}" style="font-size:14px; transition:transform .2s; color:var(--muted);">▶</span>` : '<span style="width:14px;"></span>'}
+                <span style="font-size:20px;">${icone}</span>
+                <div>
+                  <div style="font-weight:600; font-size:15px;">${tipo.tipo_nome}</div>
+                  <div style="font-size:13px; color:var(--muted);">${tipo.quantidade_lancamentos} lançamento(s)</div>
+                </div>
+              </div>
+              <div style="text-align:right;">
+                <div style="font-weight:700; font-size:18px; color:${corPrimaria};">${brl.format(tipo.total)}</div>
+              </div>
+            </div>
+        `;
+        
+        if (temDetalhes) {
+          html += `
+            <div id="detalhes-${tipoId}" style="display:none; padding:0 16px 16px 16px; border-top:1px solid rgba(148,163,184,0.08);">
+              <div style="display:flex; flex-direction:column; gap:8px; margin-top:12px;">
+          `;
+          
+          // Subtipos
+          tipo.subtipos.forEach(sub => {
+            html += `
+              <div style="display:flex; align-items:center; justify-content:between; padding:10px 12px 10px 36px; background:rgba(148,163,184,0.03); border-radius:8px; border-left:3px solid ${corPrimaria};">
+                <div style="flex:1;">
+                  <div style="font-weight:500; font-size:14px;">${sub.subtipo_nome}</div>
+                  <div style="font-size:12px; color:var(--muted);">${sub.quantidade_lancamentos} lançamento(s)</div>
+                </div>
+                <div style="text-align:right;">
+                  <div style="font-weight:600; color:${corPrimaria};">${brl.format(sub.total)}</div>
+                  <div style="font-size:12px; color:var(--muted);">${sub.percentual_do_tipo}%</div>
+                </div>
+              </div>
+            `;
+          });
+          
+          // Sem subtipo
+          if (hasSemSubtipo) {
+            html += `
+              <div style="display:flex; align-items:center; justify-content:space-between; padding:10px 12px 10px 36px; background:rgba(148,163,184,0.03); border-radius:8px; border-left:3px dashed rgba(148,163,184,0.3);">
+                <div style="flex:1;">
+                  <div style="font-weight:500; font-size:14px; color:var(--muted);">Sem subtipo</div>
+                  <div style="font-size:12px; color:var(--muted);">${tipo.sem_subtipo.quantidade_lancamentos} lançamento(s)</div>
+                </div>
+                <div style="text-align:right;">
+                  <div style="font-weight:600; color:var(--muted);">${brl.format(tipo.sem_subtipo.total)}</div>
+                  <div style="font-size:12px; color:var(--muted);">${tipo.sem_subtipo.percentual_do_tipo}%</div>
+                </div>
+              </div>
+            `;
+          }
+          
+          html += `
+              </div>
+            </div>
+          `;
+        }
+        
+        html += '</div>';
+      });
+      
+      // Resumo dos totais
+      html += `
+        <div style="background:linear-gradient(135deg, rgba(34,211,238,0.1), rgba(139,92,246,0.1)); border-radius:10px; padding:16px; border:1px solid rgba(34,211,238,0.2);">
+          <div style="display:grid; grid-template-columns:repeat(3,1fr); gap:16px; text-align:center;">
+            <div>
+              <div style="font-size:13px; color:var(--muted); margin-bottom:4px;">📈 Receitas</div>
+              <div style="font-weight:700; font-size:18px; color:var(--success);">${brl.format(dados.totais.receitas)}</div>
+            </div>
+            <div>
+              <div style="font-size:13px; color:var(--muted); margin-bottom:4px;">📉 Despesas</div>
+              <div style="font-weight:700; font-size:18px; color:var(--danger);">${brl.format(dados.totais.despesas)}</div>
+            </div>
+            <div>
+              <div style="font-size:13px; color:var(--muted); margin-bottom:4px;">💰 Saldo</div>
+              <div style="font-weight:700; font-size:18px; color:${dados.totais.saldo >= 0 ? 'var(--success)' : 'var(--danger)'};">${brl.format(dados.totais.saldo)}</div>
+            </div>
+          </div>
+        </div>
+      `;
+      
+      html += '</div>';
+      container.innerHTML = html;
+    }
+
+    function toggleHierarquia(tipoId) {
+      const detalhes = document.getElementById(`detalhes-${tipoId}`);
+      const chevron = document.getElementById(`chevron-${tipoId}`);
+      
+      if (detalhes && chevron) {
+        const isVisible = detalhes.style.display !== 'none';
+        detalhes.style.display = isVisible ? 'none' : 'block';
+        chevron.style.transform = isVisible ? 'rotate(0deg)' : 'rotate(90deg)';
+      }
+    }
+
+    function abrirTabelaAnual(){ const modal=document.getElementById('modalTabelaAnual'); modal.style.display='block'; const selectAno=document.getElementById('anoTabela'); const anoAtual=new Date().getFullYear(); selectAno.innerHTML=''; for(let ano=anoAtual+1; ano>=2020; ano--){ const o=document.createElement('option'); o.value=ano; o.textContent=ano; if(ano===anoAtual) o.selected=true; selectAno.appendChild(o); } carregarTabelaAnual(); }
+    function fecharTabelaAnual(){ document.getElementById('modalTabelaAnual').style.display='none'; }
+  async function carregarTabelaAnual(){ const ano=document.getElementById('anoTabela').value; const tipoData=document.getElementById('tipoDataTabela').value; const container=document.getElementById('tabelaAnualContainer'); try{ container.innerHTML='<p style="text-align:center; padding:20px;">Carregando...</p>'; const dados = await fetchWithLoading(`${API_BASE}/api/dashboard/tabela-anual?ano=${ano}&tipo_data=${tipoData}`, { timeout: 20000 }); renderTabelaAnual(dados); }catch(error){ console.error(error); container.innerHTML='<p style="color:var(--danger); text-align:center; padding:20px;">Erro ao carregar dados</p>'; } }
+    async function exportarTabelaPDF(){ 
+      const ano=document.getElementById('anoTabela').value; 
+      const tipoData=document.getElementById('tipoDataTabela').value; 
+      try{ 
+        LoadingOverlay.show('Gerando PDF...'); 
+        const url=`${API_BASE}/api/relatorios/tabela-anual-pdf?ano=${ano}&tipo_data=${tipoData}`; 
+        const res=await fetch(url); 
+        if(!res.ok) throw new Error('Erro ao gerar PDF'); 
+        const blob=await res.blob(); 
+        const downloadUrl=window.URL.createObjectURL(blob); 
+        const a=document.createElement('a'); 
+        a.href=downloadUrl; 
+        a.download=`relatorio_anual_${ano}_${tipoData}.pdf`; 
+        document.body.appendChild(a); 
+        a.click(); 
+        window.URL.revokeObjectURL(downloadUrl); 
+        document.body.removeChild(a); 
+        LoadingOverlay.hide(); 
+        Toast.success('✅ PDF gerado com sucesso!'); 
+      }catch(error){ 
+        console.error(error); 
+        LoadingOverlay.hide(); 
+        Toast.error('❌ Erro ao gerar PDF'); 
+      } 
+    }
+    function renderTabelaAnual(dados){ const container=document.getElementById('tabelaAnualContainer'); if(!dados.tipos||dados.tipos.length===0){ container.innerHTML='<p style="text-align:center; padding:20px; color:var(--muted);">Nenhum dado encontrado para este ano</p>'; return; } const meses=['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez']; const tipoDataLabel=dados.tipo_data==='pagamento'?'💰 Pagamento':'📅 Vencimento'; const tipoDataInfo=dados.tipo_data==='pagamento'?'Valores baseados na data de pagamento (apenas parcelas pagas)':'Valores baseados na data de vencimento (todas as parcelas)'; let html=`
+        <div style=\"margin-bottom:16px; padding:12px; background:rgba(34,211,238,0.08); border-radius:8px; border-left:3px solid var(--primary);\">
+          <strong>${tipoDataLabel}</strong> - ${tipoDataInfo}
+        </div>
+        <table style=\"width:100%; border-collapse:collapse; font-size:13px;\">
+          <thead>
+            <tr style=\"background:var(--bg); border-bottom:2px solid var(--primary);\">
+              <th style=\"padding:12px 8px; text-align:left; position:sticky; left:0; background:var(--bg); z-index:10;\">Tipo</th>
+              ${meses.map(m=>`<th style=\\\"padding:12px 8px; text-align:right; min-width:90px;\\\">${m}</th>`).join('')}
+              <th style=\"padding:12px 8px; text-align:right; font-weight:700; background:rgba(34,211,238,0.1); min-width:110px;\">Total</th>
+            </tr>
+          </thead>
+          <tbody>`;
+      const receitas=dados.tipos.filter(t=>t.natureza==='receita'); const despesas=dados.tipos.filter(t=>t.natureza==='despesa');
+      if(receitas.length>0){ html += `<tr><td colspan=\"${meses.length + 2}\" style=\"padding:16px 8px 8px 8px; font-weight:700; color:var(--success); font-size:14px;\">📈 RECEITAS</td></tr>`; receitas.forEach(tipo=>{ const cor='var(--success)'; html += `<tr style=\"border-bottom:1px solid rgba(148,163,184,0.1);\">`; html += `<td style=\"padding:10px 8px; position:sticky; left:0; background:var(--card); font-weight:500;\">${tipo.nome}</td>`; let totalTipo=0; for(let mes=1; mes<=12; mes++){ const valor=tipo.meses[mes]||0; totalTipo+=valor; const c=valor>0?'#22c55e':'var(--muted)'; html += `<td style=\"padding:10px 8px; text-align:right; color:${c}; font-variant-numeric:tabular-nums;\">${valor>0 ? brl.format(valor) : '-'}</td>`; } html += `<td style=\"padding:10px 8px; text-align:right; font-weight:700; background:rgba(34,211,238,0.05); color:${cor}; font-variant-numeric:tabular-nums;\">${brl.format(totalTipo)}</td>`; html += `</tr>`; }); }
+      if(despesas.length>0){ html += `<tr><td colspan=\"${meses.length + 2}\" style=\"padding:16px 8px 8px 8px; font-weight:700; color:var(--danger); font-size:14px;\">📉 DESPESAS</td></tr>`; despesas.forEach(tipo=>{ const cor='var(--danger)'; html += `<tr style=\"border-bottom:1px solid rgba(148,163,184,0.1);\">`; html += `<td style=\"padding:10px 8px; position:sticky; left:0; background:var(--card); font-weight:500;\">${tipo.nome}</td>`; let totalTipo=0; for(let mes=1; mes<=12; mes++){ const valor=tipo.meses[mes]||0; totalTipo+=valor; const c=valor>0?'#ef4444':'var(--muted)'; html += `<td style=\"padding:10px 8px; text-align:right; color:${c}; font-variant-numeric:tabular-nums;\">${valor>0 ? brl.format(valor) : '-'}</td>`; } html += `<td style=\"padding:10px 8px; text-align:right; font-weight:700; background:rgba(34,211,238,0.05); color:${cor}; font-variant-numeric:tabular-nums;\">${brl.format(totalTipo)}</td>`; html += `</tr>`; }); }
+      html += `<tr style=\"border-top:2px solid var(--primary); background:rgba(34,211,238,0.08); font-weight:700;\">`;
+      html += `<td style=\"padding:12px 8px;\">TOTAL GERAL</td>`;
+      for(let mes=1; mes<=12; mes++){ let totalMes=0; dados.tipos.forEach(tipo=>{ const v=tipo.meses[mes]||0; totalMes += (tipo.natureza==='receita'?v:-v); }); const c= totalMes>=0?'#22c55e':'#ef4444'; html += `<td style=\\\"padding:12px 8px; text-align:right; color:${c}; font-variant-numeric:tabular-nums;\\\">${totalMes!==0 ? brl.format(totalMes) : '-'}</td>`; }
+      const totalGeral = dados.tipos.reduce((acc,t)=> acc + (t.natureza==='receita' ? Object.values(t.meses).reduce((s,v)=>s+v,0) : -Object.values(t.meses).reduce((s,v)=>s+v,0)), 0);
+      const cTotal = totalGeral>=0 ? '#22c55e' : '#ef4444';
+      html += `<td style=\"padding:12px 8px; text-align:right; background:rgba(34,211,238,0.15); color:${cTotal}; font-size:15px; font-variant-numeric:tabular-nums;\">${brl.format(totalGeral)}</td>`;
+      html += `</tr></tbody></table>`;
+      container.innerHTML = html;
+    }
+
+    var modalTA = document.getElementById('modalTabelaAnual');
+    if(modalTA){ modalTA.addEventListener('click', (e)=>{ if(e.target && e.target.id==='modalTabelaAnual'){ fecharTabelaAnual(); } }); }
+
+    carregarTipos();
+    carregarDashboard();
+
+      // ============================================
+      // ATALHOS DE TECLADO
+      // ============================================
+      KeyboardShortcuts.register('ctrl+f', () => {
+        document.getElementById('btnOpenFilters').click();
+      }, 'Abrir filtros');
+
+      KeyboardShortcuts.register('ctrl+r', () => {
+        carregarDashboard();
+        Toast.info('Dashboard atualizado!');
+      }, 'Atualizar dashboard');
+
+      KeyboardShortcuts.register('ctrl+t', () => {
+        abrirTabelaAnual();
+      }, 'Abrir tabela anual');
+
+      KeyboardShortcuts.register('ctrl+w', () => {
+        abrirConfigWidgets();
+      }, 'Configurar widgets');
+
+      // Verificar se há pelo menos um widget ativo
+      function verificarWidgetsAtivos() {
+        const config = getWidgetsConfig();
+        const temAlgumAtivo = Object.values(config).some(v => v === true);
+        if (!temAlgumAtivo) {
+          document.getElementById('statsGrid').innerHTML = `
+            <div style="grid-column: 1 / -1; text-align:center; padding:60px 20px; background:var(--card); border-radius:12px; border:2px dashed rgba(148,163,184,0.25);">
+              <div style="font-size:48px; margin-bottom:16px;">📊</div>
+              <h3 style="margin-bottom:8px; font-size:20px;">Nenhum widget selecionado</h3>
+              <p style="color:var(--muted); margin-bottom:20px;">Configure os widgets que deseja visualizar no dashboard</p>
+              <button onclick="abrirConfigWidgets()" style="padding:12px 24px; border-radius:10px; border:none; background:var(--primary); color:var(--bg); font-weight:700; cursor:pointer; transition:all .2s;" onmouseover="this.style.background='var(--primary-strong)'" onmouseout="this.style.background='var(--primary)'">
+                ⚙️ Configurar Widgets
+              </button>
+            </div>
+          `;
+          document.getElementById('chartsGrid').innerHTML = '';
+        }
+      }
+
+      // Chamar verificação após carregar
+      const originalCarregarDashboard = carregarDashboard;
+      carregarDashboard = async function() {
+        verificarWidgetsAtivos();
+        const config = getWidgetsConfig();
+        if (Object.values(config).some(v => v === true)) {
+          await originalCarregarDashboard();
+        }
+      };
+  </script>
+</body>
+</html>

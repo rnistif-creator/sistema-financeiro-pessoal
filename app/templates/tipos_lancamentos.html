@@ -1,0 +1,765 @@
+<!doctype html>
+<html lang="pt-br">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Tipos de Despesas e Receitas</title>
+    <style>
+      /* Estilos específicos desta página (base está no components.css) */
+      .tipos-grid{
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+        gap: 20px;
+      }
+      .tipo-categoria{
+        background: rgba(15,23,42,.55);
+        border-radius: 12px;
+        padding: 16px;
+      }
+      .tipo-titulo{
+        font-size: 18px;
+        font-weight: 600;
+        color: var(--primary);
+        margin: 0 0 12px;
+      }
+      .tipo-lista{
+        list-style: none;
+        padding: 0;
+        margin: 0;
+      }
+      .form-row{
+        display: grid;
+        grid-template-columns: 2fr 1fr auto;
+        gap: 16px;
+        align-items: flex-end;
+      }
+      .form-group{
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+      }
+      .form-group label{
+        font-size: 13px;
+        color: var(--muted);
+      }
+      .tipo-item{
+        display: flex;
+        flex-direction: column;
+        background: rgba(255,255,255,.02);
+        border-radius: 10px;
+        border: 1px solid rgba(148,163,184,.08);
+        transition: all .2s ease;
+      }
+      .tipo-item:hover{
+        background: rgba(255,255,255,.04);
+        border-color: rgba(34,211,238,.15);
+      }
+      .btn-delete{
+        background: none;
+        border: none;
+        color: var(--danger);
+        opacity: 0.5;
+        cursor: pointer;
+        padding: 4px 8px;
+        border-radius: 4px;
+        transition: all .2s ease;
+      }
+      .tipo-item:hover .btn-delete{
+        opacity: 1;
+      }
+      .btn-delete:hover{
+        background: rgba(239,68,68,.1);
+      }
+      .btn-subtipo{
+        background: none;
+        border: 1px solid rgba(245,158,11,.35);
+        color: #f59e0b;
+        opacity: 0.7;
+        cursor: pointer;
+        padding: 4px 10px;
+        border-radius: 6px;
+        font-size: 14px;
+        transition: all .2s ease;
+      }
+      .tipo-item:hover .btn-subtipo{
+        opacity: 1;
+      }
+      .btn-subtipo:hover{
+        background: rgba(245,158,11,.15);
+        transform: scale(1.05);
+      }
+      .subtipo-item{
+        display: flex;
+        align-items: center;
+        padding: 12px;
+        background: rgba(255,255,255,.03);
+        border-radius: 8px;
+        border: 1px solid rgba(148,163,184,.1);
+        transition: all .2s ease;
+      }
+      .subtipo-item:hover{
+        background: rgba(255,255,255,.05);
+        border-color: rgba(34,211,238,.2);
+      }
+      .btn-edit-subtipo{
+        background: none;
+        border: none;
+        cursor: pointer;
+        padding: 4px 8px;
+        border-radius: 4px;
+        opacity: 0.6;
+        transition: all .2s ease;
+      }
+      .btn-edit-subtipo:hover{
+        opacity: 1;
+        background: rgba(34,211,238,.1);
+      }
+      .btn-delete-subtipo{
+        background: none;
+        border: none;
+        color: var(--danger);
+        cursor: pointer;
+        padding: 4px 8px;
+        border-radius: 4px;
+        opacity: 0.6;
+        transition: all .2s ease;
+      }
+      .btn-delete-subtipo:hover{
+        opacity: 1;
+        background: rgba(239,68,68,.1);
+      }
+      .dialog{
+        display: none;
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: rgba(0,0,0,.5);
+        align-items: center;
+        justify-content: center;
+      }
+      .dialog.show{
+        display: flex;
+      }
+      .dialog-content{
+        background: var(--card);
+        border-radius: 18px;
+        padding: 24px;
+        min-width: 320px;
+        box-shadow: 0 20px 40px rgba(0,0,0,.4);
+      }
+      .dialog-content h3{
+        margin: 0 0 12px;
+      }
+      .dialog-content p{
+        margin: 0 0 20px;
+        color: var(--muted);
+      }
+      .dialog-buttons{
+        display: flex;
+        gap: 12px;
+        justify-content: flex-end;
+      }
+    </style>
+  </head>
+  <body>
+    {% include '_app_sidebar.html' %}
+    <div class="container" id="main-content">
+      <div style="margin-bottom: 32px;">
+        <h1 class="title">📋 Tipos de Lançamentos</h1>
+        <p class="subtitle">Lista de categorias para classificação de despesas e receitas.</p>
+      </div>
+
+      <div class="card" style="margin-bottom: 24px;">
+        <h2 class="tipo-titulo" style="margin-bottom: 20px;">Novo Tipo de Lançamento</h2>
+        <form id="formTipo" class="form-tipo">
+          <div class="form-row">
+            <div class="form-group">
+              <label for="nomeTipo">Nome do Tipo</label>
+              <input type="text" id="nomeTipo" required placeholder="Ex: Alimentação, Salário, etc">
+            </div>
+            <div class="form-group">
+              <label for="naturezaTipo">Natureza</label>
+              <select id="naturezaTipo" required>
+                <option value="" disabled selected>Selecione...</option>
+                <option value="despesa">Despesa</option>
+                <option value="receita">Receita</option>
+              </select>
+            </div>
+            <button type="submit" class="btn btn-primary">Adicionar Tipo</button>
+          </div>
+        </form>
+      </div>
+
+      <div class="tipos-grid">
+        <div class="card">
+          <h2 class="tipo-titulo">Despesas</h2>
+          <ul id="listaDespesas" class="tipo-lista">
+            <!-- Será preenchido via JavaScript -->
+          </ul>
+        </div>
+
+        <div class="card">
+          <h2 class="tipo-titulo">Receitas</h2>
+          <ul id="listaReceitas" class="tipo-lista">
+            <!-- Será preenchido via JavaScript -->
+          </ul>
+        </div>
+      </div>
+
+      <div id="confirmDialog" class="dialog">
+        <div class="dialog-content">
+          <h3>Confirmar Exclusão</h3>
+          <p>Deseja realmente excluir este tipo de lançamento?</p>
+          <div class="dialog-buttons">
+            <button id="confirmDelete" class="btn btn-danger">Excluir</button>
+            <button id="cancelDelete" class="btn btn-outline">Cancelar</button>
+          </div>
+        </div>
+      </div>
+
+  <div id="toast" class="toast" role="status" aria-live="polite" style="display:none"></div>
+
+  <!-- Modal de Subtipos -->
+  <div id="modalSubtipos" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.8); z-index:2000; align-items:center; justify-content:center; padding:20px; overflow:auto;">
+    <div style="background:var(--card); border-radius:18px; padding:32px; max-width:700px; width:100%; max-height:90vh; overflow:auto; border:1px solid rgba(34,211,238,0.2); box-shadow:0 20px 40px rgba(0,0,0,0.5);">
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:24px;">
+        <h2 id="tituloModalSubtipos" style="margin:0; font-size:24px;">🏷️ Subtipos</h2>
+        <button onclick="fecharModalSubtipos()" style="background:transparent; border:none; color:var(--text); font-size:28px; cursor:pointer; padding:4px 12px; border-radius:8px; transition:background .2s;" onmouseover="this.style.background='rgba(239,68,68,0.15)'" onmouseout="this.style.background='transparent'">×</button>
+      </div>
+
+      <!-- Formulário de Novo Subtipo -->
+      <div style="background:rgba(34,211,238,0.05); border:1px solid rgba(34,211,238,0.2); border-radius:12px; padding:20px; margin-bottom:24px;">
+        <h3 style="margin:0 0 16px; font-size:16px; color:var(--primary);">➕ Adicionar Subtipo</h3>
+        <form id="formSubtipo" onsubmit="salvarSubtipo(event)">
+          <input type="hidden" id="subtipoIdEdicao" value="">
+          <div style="display:flex; gap:12px; align-items:end; flex-wrap:wrap;">
+            <div style="flex:1; min-width:200px;">
+              <label for="nomeSubtipo" style="display:block; font-size:13px; color:var(--muted); margin-bottom:6px;">Nome do Subtipo</label>
+              <input type="text" id="nomeSubtipo" required placeholder="Ex: Restaurante, Combustível..." style="width:100%; padding:10px 12px; border-radius:10px; border:1px solid rgba(148,163,184,0.35); background:rgba(15,23,42,0.65); color:var(--text);">
+            </div>
+            <div>
+              <label style="display:flex; align-items:center; gap:8px; cursor:pointer; padding:10px 12px; background:rgba(15,23,42,0.65); border-radius:10px; border:1px solid rgba(148,163,184,0.35);">
+                <input type="checkbox" id="ativoSubtipo" checked style="width:18px; height:18px; cursor:pointer; accent-color:var(--primary);">
+                <span style="font-size:14px;">Ativo</span>
+              </label>
+            </div>
+            <button type="submit" class="btn btn-primary" style="padding:10px 20px;">
+              💾 Salvar
+            </button>
+            <button type="button" id="btnCancelarEdicao" onclick="cancelarEdicao()" style="display:none; padding:10px 16px; border-radius:10px; border:1px solid rgba(148,163,184,0.35); background:transparent; color:var(--text); cursor:pointer;">
+              Cancelar
+            </button>
+          </div>
+        </form>
+      </div>
+
+      <!-- Lista de Subtipos -->
+      <div>
+        <h3 style="margin:0 0 12px; font-size:16px; color:var(--muted);">📋 Subtipos Cadastrados</h3>
+        <div id="listaSubtipos" style="display:flex; flex-direction:column; gap:8px;">
+          <!-- Será preenchido via JavaScript -->
+        </div>
+      </div>
+    </div>
+  </div>
+    </div>
+
+    <script{%- if csp_nonce %} nonce="{{ csp_nonce }}"{%- endif %}>
+      // API_BASE agora vem de config.js global
+      const $ = (sel) => document.querySelector(sel);
+  const toast = $("#toast");
+
+      // Cache dos elementos
+      const formTipo = $("#formTipo");
+      const listaDespesas = $("#listaDespesas");
+      const listaReceitas = $("#listaReceitas");
+      const dialog = $("#confirmDialog");
+      const btnConfirmDelete = $("#confirmDelete");
+      const btnCancelDelete = $("#cancelDelete");
+
+      let tipoParaExcluir = null;
+
+      function showToast(msg, type="success"){ Toast.show(msg, type); }
+
+      function renderTipoItem(tipo) {
+        const subtiposHtml = tipo.subtipos && tipo.subtipos.length > 0 ? `
+          <div id="subtipos-${tipo.id}" class="subtipos-lista" style="display:none; margin-top:8px; padding-left:24px; border-left:2px solid rgba(34,211,238,0.3);">
+            ${tipo.subtipos.map(sub => `
+              <div class="subtipo-item-inline" style="padding:6px 12px; margin:4px 0; background:rgba(255,255,255,0.03); border-radius:6px; display:flex; align-items:center; gap:8px;">
+                <span style="flex:1; font-size:14px;">${sub.nome}</span>
+                <span style="padding:3px 6px; border-radius:4px; font-size:11px; ${sub.ativo ? 'background:rgba(34,197,94,0.1); color:#22c55e;' : 'background:rgba(148,163,184,0.1); color:#94a3b8;'}">
+                  ${sub.ativo ? '✓' : '✗'}
+                </span>
+                <button type="button" onclick="editarSubtipoInline(${tipo.id}, ${sub.id})" style="background:none; border:none; cursor:pointer; padding:4px; opacity:0.6; transition:opacity .2s;" onmouseover="this.style.opacity='1'" onmouseout="this.style.opacity='0.6'">✏️</button>
+                <button type="button" onclick="excluirSubtipoInline(${tipo.id}, ${sub.id})" style="background:none; border:none; color:#ef4444; cursor:pointer; padding:4px; opacity:0.6; transition:opacity .2s;" onmouseover="this.style.opacity='1'" onmouseout="this.style.opacity='0.6'">×</button>
+              </div>
+            `).join('')}
+            <button type="button" onclick="mostrarFormNovoSubtipo(${tipo.id})" style="margin-top:8px; padding:6px 12px; border-radius:6px; border:1px dashed rgba(34,211,238,0.3); background:transparent; color:#22d3ee; cursor:pointer; width:100%; font-size:13px; transition:all .2s;" onmouseover="this.style.background='rgba(34,211,238,0.05)'" onmouseout="this.style.background='transparent'">
+              + Adicionar Subtipo
+            </button>
+          </div>
+        ` : `
+          <div id="subtipos-${tipo.id}" class="subtipos-lista" style="display:none; margin-top:8px; padding-left:24px;">
+            <div style="padding:12px; color:#94a3b8; font-size:13px; text-align:center; font-style:italic;">
+              Nenhum subtipo cadastrado
+            </div>
+            <button type="button" onclick="mostrarFormNovoSubtipo(${tipo.id})" style="margin-top:8px; padding:6px 12px; border-radius:6px; border:1px dashed rgba(34,211,238,0.3); background:transparent; color:#22d3ee; cursor:pointer; width:100%; font-size:13px; transition:all .2s;" onmouseover="this.style.background='rgba(34,211,238,0.05)'" onmouseout="this.style.background='transparent'">
+              + Adicionar Subtipo
+            </button>
+          </div>
+        `;
+        
+        return `
+          <li class="tipo-item" data-id="${tipo.id}" style="padding:12px; margin-bottom:8px;">
+            <div style="display:flex; align-items:center; gap:8px;">
+              <button type="button" onclick="toggleSubtipos(${tipo.id})" style="background:none; border:none; cursor:pointer; padding:4px 8px; font-size:14px; color:#94a3b8; transition:transform .2s;" id="chevron-${tipo.id}">
+                ▶
+              </button>
+              <span style="flex:1; font-weight:500;">${tipo.nome}</span>
+              <span style="font-size:12px; color:#94a3b8;">${tipo.subtipos?.length || 0} subtipo(s)</span>
+              <button type="button" class="btn-delete" title="Excluir tipo" onclick="confirmarExclusao(${tipo.id})">×</button>
+            </div>
+            ${subtiposHtml}
+          </li>
+        `;
+      }
+
+      // Função para exibir erros no console para debug
+      async function fetchWithLogging(url, options = {}) {
+        try {
+          const response = await fetch(url, options);
+          const data = await response.json();
+          console.log('API Response:', { url, response, data });
+          if (!response.ok) {
+            throw new Error(data.detail || 'Erro na requisição');
+          }
+          return data;
+        } catch (error) {
+          console.error('API Error:', error);
+          throw error;
+        }
+      }
+
+      async function carregarTipos() {
+        try {
+          const tipos = await fetchWithLogging(`${API_BASE}/api/tipos`);
+          console.log('Tipos carregados:', tipos);
+          
+          // Carregar subtipos para cada tipo
+          for (const tipo of tipos) {
+            try {
+              const subtipos = await fetch(`${API_BASE}/api/tipos/${tipo.id}/subtipos`);
+              tipo.subtipos = subtipos.ok ? await subtipos.json() : [];
+            } catch (err) {
+              console.warn(`Erro ao carregar subtipos do tipo ${tipo.id}:`, err);
+              tipo.subtipos = [];
+            }
+          }
+          
+          // Separar tipos por natureza
+          const despesas = tipos.filter(t => t.natureza === 'despesa');
+          const receitas = tipos.filter(t => t.natureza === 'receita');
+
+          console.log('Despesas:', despesas);
+          console.log('Receitas:', receitas);
+
+          // Renderizar listas
+          listaDespesas.innerHTML = despesas.map(renderTipoItem).join('') || '<li class="hint">Nenhum tipo cadastrado</li>';
+          listaReceitas.innerHTML = receitas.map(renderTipoItem).join('') || '<li class="hint">Nenhum tipo cadastrado</li>';
+        } catch (err) {
+          console.error('Erro ao carregar tipos:', err);
+          showToast(err.message, 'error');
+        }
+      }
+
+      function confirmarExclusao(id) {
+        ConfirmDialog.show(
+          'Confirmar Exclusão',
+          'Deseja realmente excluir este tipo de lançamento?',
+          () => excluirTipo(id),
+          () => {}
+        );
+      }
+
+      async function excluirTipo(id) {
+        try {
+          const res = await fetch(`${API_BASE}/api/tipos/${id}`, { method: 'DELETE' });
+          if (!res.ok) {
+            const err = await res.json();
+            throw new Error(err.detail || 'Falha ao excluir tipo');
+          }
+          showToast('Tipo excluído com sucesso!');
+          await carregarTipos();
+        } catch (err) {
+          showToast(err.message, 'error');
+        }
+      }
+
+      formTipo.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        
+        const payload = {
+          nome: $("#nomeTipo").value.trim(),
+          natureza: $("#naturezaTipo").value
+        };
+
+        try {
+          console.log('Enviando payload:', payload);
+          const novoTipo = await fetchWithLogging(`${API_BASE}/api/tipos`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+          });
+
+          console.log('Novo tipo criado:', novoTipo);
+          showToast('Tipo criado com sucesso!');
+          formTipo.reset();
+          await carregarTipos();
+        } catch (err) {
+          console.error('Erro ao criar tipo:', err);
+          showToast(err.message, 'error');
+        }
+      });
+
+      btnConfirmDelete.addEventListener('click', excluirTipo);
+      btnCancelDelete.addEventListener('click', () => {
+        dialog.classList.remove('show');
+        tipoParaExcluir = null;
+      });
+
+      // Carregar tipos ao iniciar
+      carregarTipos();
+
+      // ============================================
+      // GESTÃO DE SUBTIPOS INLINE
+      // ============================================
+      function toggleSubtipos(tipoId) {
+        const container = document.getElementById(`subtipos-${tipoId}`);
+        const chevron = document.getElementById(`chevron-${tipoId}`);
+        
+        if (container && chevron) {
+          const isVisible = container.style.display !== 'none';
+          container.style.display = isVisible ? 'none' : 'block';
+          chevron.style.transform = isVisible ? 'rotate(0deg)' : 'rotate(90deg)';
+        }
+      }
+      
+      async function mostrarFormNovoSubtipo(tipoId) {
+        const container = document.getElementById(`subtipos-${tipoId}`);
+        if (!container) return;
+        
+        // Verificar se já existe um form
+        if (container.querySelector('.form-novo-subtipo')) return;
+        
+        const formHtml = `
+          <div class="form-novo-subtipo" style="margin-top:12px; padding:12px; background:rgba(34,211,238,0.05); border-radius:8px; border:1px solid rgba(34,211,238,0.2);">
+            <form onsubmit="salvarSubtipoInline(event, ${tipoId})" style="display:flex; gap:8px; flex-wrap:wrap; align-items:end;">
+              <div style="flex:1; min-width:150px;">
+                <label style="display:block; font-size:12px; color:#94a3b8; margin-bottom:4px;">Nome</label>
+                <input type="text" id="nome-subtipo-${tipoId}" required placeholder="Ex: Restaurante..." style="width:100%; padding:8px 10px; border-radius:6px; border:1px solid rgba(148,163,184,0.35); background:rgba(15,23,42,0.65); color:#e5e7eb; font-size:14px;">
+              </div>
+              <div>
+                <label style="display:flex; align-items:center; gap:6px; cursor:pointer; padding:8px 10px; background:rgba(15,23,42,0.65); border-radius:6px; border:1px solid rgba(148,163,184,0.35); font-size:13px;">
+                  <input type="checkbox" id="ativo-subtipo-${tipoId}" checked style="width:16px; height:16px; cursor:pointer; accent-color:#22d3ee;">
+                  Ativo
+                </label>
+              </div>
+              <button type="submit" style="padding:8px 14px; border-radius:6px; border:none; background:#22d3ee; color:#00212a; font-weight:600; cursor:pointer; font-size:13px;">
+                💾 Salvar
+              </button>
+              <button type="button" onclick="cancelarFormSubtipo(${tipoId})" style="padding:8px 14px; border-radius:6px; border:1px solid rgba(148,163,184,0.35); background:transparent; color:#e5e7eb; cursor:pointer; font-size:13px;">
+                Cancelar
+              </button>
+            </form>
+          </div>
+        `;
+        
+        container.insertAdjacentHTML('beforeend', formHtml);
+        document.getElementById(`nome-subtipo-${tipoId}`).focus();
+      }
+      
+      function cancelarFormSubtipo(tipoId) {
+        const form = document.querySelector(`#subtipos-${tipoId} .form-novo-subtipo`);
+        if (form) form.remove();
+      }
+      
+      async function salvarSubtipoInline(event, tipoId) {
+        event.preventDefault();
+        
+        const nomeInput = document.getElementById(`nome-subtipo-${tipoId}`);
+        const ativoInput = document.getElementById(`ativo-subtipo-${tipoId}`);
+        
+        const payload = {
+          tipo_lancamento_id: tipoId,
+          nome: nomeInput.value.trim(),
+          ativo: ativoInput.checked
+        };
+        
+        try {
+          const response = await fetch(`${API_BASE}/api/tipos/${tipoId}/subtipos`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+          });
+          
+          if (!response.ok) {
+            const err = await response.json();
+            throw new Error(err.detail || 'Erro ao criar subtipo');
+          }
+          
+          showToast('Subtipo criado com sucesso!', 'success');
+          await carregarTipos();
+          
+          // Reabrir a seção do tipo
+          setTimeout(() => {
+            const container = document.getElementById(`subtipos-${tipoId}`);
+            const chevron = document.getElementById(`chevron-${tipoId}`);
+            if (container && chevron) {
+              container.style.display = 'block';
+              chevron.style.transform = 'rotate(90deg)';
+            }
+          }, 100);
+        } catch (error) {
+          console.error(error);
+          showToast(error.message, 'error');
+        }
+      }
+      
+      async function editarSubtipoInline(tipoId, subtipoId) {
+        const nome = prompt('Novo nome do subtipo:');
+        if (!nome || !nome.trim()) return;
+
+        try {
+          // Buscar subtipo atual para manter o estado "ativo"
+          const resAtual = await fetch(`${API_BASE}/api/tipos/${tipoId}/subtipos`);
+          if (!resAtual.ok) throw new Error('Falha ao carregar subtipos');
+          const lista = await resAtual.json();
+          const atual = Array.isArray(lista) ? lista.find(s => s.id === subtipoId) : null;
+          const ativo = atual ? !!atual.ativo : true;
+
+          const response = await fetch(`${API_BASE}/api/subtipos/${subtipoId}`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              tipo_lancamento_id: tipoId,
+              nome: nome.trim(),
+              ativo: ativo
+            })
+          });
+
+          if (!response.ok) {
+            const err = await response.json();
+            throw new Error(err.detail || 'Erro ao editar subtipo');
+          }
+
+          showToast('Subtipo atualizado!', 'success');
+          await carregarTipos();
+
+          // Reabrir a seção
+          setTimeout(() => {
+            const container = document.getElementById(`subtipos-${tipoId}`);
+            const chevron = document.getElementById(`chevron-${tipoId}`);
+            if (container && chevron) {
+              container.style.display = 'block';
+              chevron.style.transform = 'rotate(90deg)';
+            }
+          }, 100);
+        } catch (error) {
+          console.error(error);
+          showToast(error.message, 'error');
+        }
+      }
+      
+      async function excluirSubtipoInline(tipoId, subtipoId) {
+        if (!confirm('Deseja realmente excluir este subtipo?')) return;
+        
+        try {
+          const response = await fetch(`${API_BASE}/api/subtipos/${subtipoId}`, {
+            method: 'DELETE'
+          });
+          
+          if (!response.ok) {
+            const err = await response.json();
+            throw new Error(err.detail || 'Erro ao excluir subtipo');
+          }
+          
+          showToast('Subtipo excluído!', 'success');
+          await carregarTipos();
+          
+          // Reabrir a seção
+          setTimeout(() => {
+            const container = document.getElementById(`subtipos-${tipoId}`);
+            const chevron = document.getElementById(`chevron-${tipoId}`);
+            if (container && chevron) {
+              container.style.display = 'block';
+              chevron.style.transform = 'rotate(90deg)';
+            }
+          }, 100);
+        } catch (error) {
+          console.error(error);
+          showToast(error.message, 'error');
+        }
+      }
+
+      // ============================================
+      // GESTÃO DE SUBTIPOS (MODAL - MANTIDO PARA COMPATIBILIDADE)
+      // ============================================
+      let tipoAtualSubtipos = null;
+      let subtipos = [];
+      
+      async function abrirModalSubtipos(tipoId, tipoNome) {
+        tipoAtualSubtipos = tipoId;
+        document.getElementById('modalSubtipos').style.display = 'flex';
+        document.getElementById('tituloModalSubtipos').textContent = `Subtipos de: ${tipoNome}`;
+        await carregarSubtipos(tipoId);
+      }
+      
+      function fecharModalSubtipos() {
+        document.getElementById('modalSubtipos').style.display = 'none';
+        tipoAtualSubtipos = null;
+        subtipos = [];
+      }
+      
+      async function carregarSubtipos(tipoId) {
+        try {
+          const response = await fetch(`${API_BASE}/api/tipos/${tipoId}/subtipos`);
+          if (!response.ok) throw new Error('Erro ao carregar subtipos');
+          subtipos = await response.json();
+          renderizarSubtipos();
+        } catch (error) {
+          console.error(error);
+          showToast(error.message, 'error');
+        }
+      }
+      
+      function renderizarSubtipos() {
+        const lista = document.getElementById('listaSubtipos');
+        if (subtipos.length === 0) {
+          lista.innerHTML = '<div style="text-align:center; padding:20px; color:var(--muted);">Nenhum subtipo cadastrado</div>';
+          return;
+        }
+        
+        lista.innerHTML = subtipos.map(sub => `
+          <div class="subtipo-item" data-id="${sub.id}">
+            <div style="display:flex; align-items:center; gap:12px; flex:1;">
+              <span style="flex:1; font-weight:500;">${sub.nome}</span>
+              <span style="padding:4px 8px; border-radius:6px; font-size:12px; ${sub.ativo ? 'background:rgba(34,197,94,0.1); color:var(--success);' : 'background:rgba(148,163,184,0.1); color:var(--muted);'}">
+                ${sub.ativo ? '✓ Ativo' : '✗ Inativo'}
+              </span>
+              <button type="button" class="btn-edit-subtipo" onclick="editarSubtipo(${sub.id})" title="Editar">✏️</button>
+              <button type="button" class="btn-delete-subtipo" onclick="excluirSubtipo(${sub.id})" title="Excluir">×</button>
+            </div>
+          </div>
+        `).join('');
+      }
+      
+      async function salvarSubtipo(event) {
+        event.preventDefault();
+        
+        const nomeInput = document.getElementById('nomeSubtipo');
+        const ativoInput = document.getElementById('ativoSubtipo');
+        const subtipoIdInput = document.getElementById('subtipoIdEdicao');
+        
+        const payload = {
+          nome: nomeInput.value.trim(),
+          ativo: ativoInput.checked
+        };
+        
+        try {
+          let response;
+          const subtipoId = subtipoIdInput.value;
+          
+          if (subtipoId) {
+            // Editar
+            response = await fetch(`${API_BASE}/api/subtipos/${subtipoId}`, {
+              method: 'PATCH',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify(payload)
+            });
+          } else {
+            // Criar
+            payload.tipo_lancamento_id = tipoAtualSubtipos;
+            response = await fetch(`${API_BASE}/api/tipos/${tipoAtualSubtipos}/subtipos`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify(payload)
+            });
+          }
+          
+          if (!response.ok) {
+            const err = await response.json();
+            throw new Error(err.detail || 'Erro ao salvar subtipo');
+          }
+          
+          showToast(subtipoId ? 'Subtipo atualizado!' : 'Subtipo criado!', 'success');
+          nomeInput.value = '';
+          ativoInput.checked = true;
+          subtipoIdInput.value = '';
+          document.getElementById('btnCancelarEdicao').style.display = 'none';
+          await carregarSubtipos(tipoAtualSubtipos);
+        } catch (error) {
+          console.error(error);
+          showToast(error.message, 'error');
+        }
+      }
+      
+      function editarSubtipo(subtipoId) {
+        const subtipo = subtipos.find(s => s.id === subtipoId);
+        if (!subtipo) return;
+        
+        document.getElementById('nomeSubtipo').value = subtipo.nome;
+        document.getElementById('ativoSubtipo').checked = subtipo.ativo;
+        document.getElementById('subtipoIdEdicao').value = subtipo.id;
+        document.getElementById('btnCancelarEdicao').style.display = 'inline-block';
+        document.getElementById('nomeSubtipo').focus();
+      }
+      
+      function cancelarEdicao() {
+        document.getElementById('nomeSubtipo').value = '';
+        document.getElementById('ativoSubtipo').checked = true;
+        document.getElementById('subtipoIdEdicao').value = '';
+        document.getElementById('btnCancelarEdicao').style.display = 'none';
+      }
+      
+      async function excluirSubtipo(subtipoId) {
+        if (!confirm('Deseja realmente excluir este subtipo?')) return;
+        
+        try {
+          const response = await fetch(`${API_BASE}/api/subtipos/${subtipoId}`, {
+            method: 'DELETE'
+          });
+          
+          if (!response.ok) {
+            const err = await response.json();
+            throw new Error(err.detail || 'Erro ao excluir subtipo');
+          }
+          
+          showToast('Subtipo excluído!', 'success');
+          await carregarSubtipos(tipoAtualSubtipos);
+        } catch (error) {
+          console.error(error);
+          showToast(error.message, 'error');
+        }
+      }
+
+      // ============================================
+      // ATALHOS DE TECLADO
+      // ============================================
+      KeyboardShortcuts.register('ctrl+n', () => {
+        document.getElementById('nomeTipo').focus();
+      }, 'Novo tipo');
+
+      KeyboardShortcuts.register('ctrl+s', (e) => {
+        e.preventDefault();
+        formTipo.requestSubmit();
+      }, 'Salvar tipo');
+
+      KeyboardShortcuts.register('ctrl+r', () => {
+        carregarTipos();
+        Toast.info('Tipos atualizados!');
+      }, 'Atualizar tipos');
+    </script>
+  </body>
+</html>

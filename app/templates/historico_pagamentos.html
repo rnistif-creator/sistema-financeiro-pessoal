@@ -1,0 +1,251 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Histórico de Pagamentos</title>
+  <link rel="stylesheet" href="/static/components.css?v=20251105a" />
+  <style>
+    body { margin: 0; font-family: Inter, system-ui, -apple-system, Segoe UI, Roboto, Arial; background: #0f172a; color: #e5e7eb; }
+    .container { max-width: 1200px; margin: 0 auto; padding: 20px; }
+    .page-header { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin: 12px 0 20px; }
+    .page-header h1 { margin: 0; font-size: 24px; }
+    .filters { display: grid; grid-template-columns: repeat(6, 1fr); gap: 12px; background: #111827; border: 1px solid rgba(148,163,184,0.2); border-radius: 12px; padding: 16px; }
+    .filters .field { display: flex; flex-direction: column; gap: 6px; }
+    .filters label { color: #94a3b8; font-size: 13px; font-weight: 600; }
+    .filters input, .filters select { padding: 10px; background: #0b1220; border: 1px solid rgba(148,163,184,0.2); border-radius: 8px; color: #e5e7eb; }
+    .actions { display: flex; gap: 8px; justify-content: flex-end; }
+    .btn { padding: 10px 14px; border-radius: 8px; border: 1px solid rgba(148,163,184,0.3); cursor: pointer; font-weight: 600; }
+    .btn-primary { background: #22d3ee; color: #0f172a; border-color: transparent; }
+    .btn-secondary { background: rgba(148,163,184,0.15); color: #e5e7eb; }
+    .card { background: #111827; border: 1px solid rgba(148,163,184,0.2); border-radius: 12px; }
+    .summary { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin: 16px 0; }
+    .summary .stat { padding: 14px; border-radius: 12px; background: #0b1220; border: 1px solid rgba(148,163,184,0.15); }
+    .stat .title { color: #94a3b8; font-size: 12px; text-transform: uppercase; letter-spacing: .06em; }
+    .stat .value { font-size: 20px; font-weight: 700; margin-top: 6px; }
+    table { width: 100%; border-collapse: collapse; }
+    thead th { text-align: left; font-size: 12px; color: #94a3b8; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; padding: 10px; border-bottom: 1px solid rgba(148,163,184,0.15); }
+    tbody td { padding: 12px 10px; border-bottom: 1px solid rgba(148,163,184,0.08); }
+    tbody tr:hover { background: rgba(148,163,184,0.05); }
+    .badge { display: inline-block; padding: 3px 8px; border-radius: 999px; font-size: 12px; font-weight: 600; }
+    .badge.receita { background: rgba(34,197,94,.15); color: #22c55e; border: 1px solid rgba(34,197,94,.3); }
+    .badge.despesa { background: rgba(239,68,68,.15); color: #ef4444; border: 1px solid rgba(239,68,68,.3); }
+    .empty { padding: 40px; text-align: center; color: #94a3b8; }
+  </style>
+</head>
+<body>
+  {% include '_app_sidebar.html' %}
+  <div class="container">
+    <div class="page-header">
+      <h1>📜 Histórico de Pagamentos</h1>
+      <div class="actions">
+        <button class="btn btn-secondary" onclick="limparFiltros()">Limpar</button>
+        <button class="btn btn-primary" onclick="carregar()">Atualizar</button>
+      </div>
+    </div>
+
+    <div class="filters card">
+      <div class="field">
+        <label>Data início</label>
+        <input type="date" id="fDataInicio" />
+      </div>
+      <div class="field">
+        <label>Data fim</label>
+        <input type="date" id="fDataFim" />
+      </div>
+      <div class="field">
+        <label>Natureza</label>
+        <select id="fTipo">
+          <option value="">Todas</option>
+          <option value="receita">Receita</option>
+          <option value="despesa">Despesa</option>
+        </select>
+      </div>
+      <div class="field" style="grid-column: span 2;">
+        <label>Forma de Pagamento</label>
+        <select id="fForma">
+          <option value="">Todas</option>
+        </select>
+      </div>
+      <div class="field">
+        <label>Valor mínimo</label>
+        <input type="number" id="fValorMin" step="0.01" min="0" placeholder="0,00" />
+      </div>
+      <div class="field">
+        <label>Valor máximo</label>
+        <input type="number" id="fValorMax" step="0.01" min="0" placeholder="0,00" />
+      </div>
+      <div class="field">
+        <label>Limite</label>
+        <select id="fLimit">
+          <option>50</option>
+          <option selected>100</option>
+          <option>200</option>
+          <option>500</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="summary">
+      <div class="stat">
+        <div class="title">Pagamentos</div>
+        <div class="value" id="sTotal">0</div>
+      </div>
+      <div class="stat">
+        <div class="title">Total Pago</div>
+        <div class="value" id="sValorPago">R$ 0,00</div>
+      </div>
+      <div class="stat">
+        <div class="title">Receitas</div>
+        <div class="value" id="sReceitas">R$ 0,00</div>
+      </div>
+      <div class="stat">
+        <div class="title">Despesas</div>
+        <div class="value" id="sDespesas">R$ 0,00</div>
+      </div>
+    </div>
+
+    <div class="card" id="listaPagamentos" style="overflow: auto;">
+      <table>
+        <thead>
+          <tr>
+            <th>Data Pagamento</th>
+            <th>Natureza</th>
+            <th>Fornecedor</th>
+            <th>Lanç.</th>
+            <th>Parcela</th>
+            <th>Valor</th>
+            <th>Valor Pago</th>
+            <th>Forma</th>
+            <th>Obs.</th>
+          </tr>
+        </thead>
+        <tbody id="tbPagamentos">
+          <tr><td colspan="9" class="empty">Carregando...</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <script src="/static/components.js?v=20251105a"></script>
+  <script{%- if csp_nonce %} nonce="{{ csp_nonce }}"{%- endif %}>
+    const API = window.API_BASE || '';
+    const brl = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' });
+
+    function hojeISO(){ return new Date().toISOString().slice(0,10); }
+    function primeiroDiaMes(){ const d=new Date(); return new Date(d.getFullYear(), d.getMonth(), 1).toISOString().slice(0,10); }
+
+    async function carregarFormas(){
+      try{
+        const formas = await fetchWithLoading(`${API}/api/formas-pagamento?incluir_inativas=true`, { timeout: 10000});
+        const sel = document.getElementById('fForma');
+        sel.innerHTML = '<option value="">Todas</option>' + formas.map(f=>`<option value="${f.id}">${f.nome}${f.banco? ' - '+f.banco:''}</option>`).join('');
+      }catch(e){ console.error(e); }
+    }
+
+    async function carregar(){
+      const di = document.getElementById('fDataInicio').value;
+      const df = document.getElementById('fDataFim').value;
+      const tipo = document.getElementById('fTipo').value;
+      const forma = document.getElementById('fForma').value;
+      const vmin = document.getElementById('fValorMin').value;
+      const vmax = document.getElementById('fValorMax').value;
+      const limit = document.getElementById('fLimit').value;
+
+      try{
+        const qs = new URLSearchParams();
+        if(di) qs.set('data_inicio', di);
+        if(df) qs.set('data_fim', df);
+        if(tipo) qs.set('tipo', tipo);
+        if(forma) qs.set('forma_pagamento_id', forma);
+        if(vmin) qs.set('valor_min', vmin);
+        if(vmax) qs.set('valor_max', vmax);
+        if(limit) qs.set('limit', limit);
+
+        const dados = await fetchWithLoading(`${API}/api/parcelas/pagas?${qs.toString()}`, { timeout: 15000, overlayText: 'Carregando histórico...' });
+        renderizar(dados.parcelas || []);
+      }catch(err){
+        console.error(err);
+        showToast('Erro ao carregar histórico', 'error');
+      }
+    }
+
+    function renderizar(items){
+      const tbody = document.getElementById('tbPagamentos');
+      if(!items || items.length===0){
+        tbody.innerHTML = '<tr><td colspan="9" class="empty">Nenhum pagamento encontrado</td></tr>';
+        atualizarResumo([]);
+        return;
+      }
+
+      let total = 0, receitas=0, despesas=0;
+      tbody.innerHTML = items.map(p=>{
+        const valorPago = p.valor_pago ?? p.valor;
+        total += valorPago || 0;
+        if(p.tipo==='receita') receitas += valorPago || 0; else despesas += valorPago || 0;
+        const forma = p.forma_pagamento ? `${p.forma_pagamento.nome}` : '-';
+        const obs = p.observacao_pagamento ? p.observacao_pagamento : '';
+        const dataPag = p.data_pagamento ? formatarDataBR(p.data_pagamento) : '';
+        return `
+          <tr>
+            <td>${dataPag}</td>
+            <td><span class="badge ${p.tipo}">${p.tipo}</span></td>
+            <td>${p.fornecedor || ''}</td>
+            <td>${p.lancamento_id}</td>
+            <td>${p.numero_parcela}</td>
+            <td>${brl.format(p.valor)}</td>
+            <td>${valorPago ? brl.format(valorPago): '-'}</td>
+            <td>${forma}</td>
+            <td>${obs}</td>
+          </tr>`
+        ;
+      }).join('');
+
+      atualizarResumo([{total, receitas, despesas}]);
+    }
+
+    function atualizarResumo(arr){
+      const a = arr[0] || {total:0, receitas:0, despesas:0};
+      document.getElementById('sTotal').textContent = (document.querySelectorAll('#tbPagamentos tr').length || 0);
+      document.getElementById('sValorPago').textContent = brl.format(a.total);
+      document.getElementById('sReceitas').textContent = brl.format(a.receitas);
+      document.getElementById('sDespesas').textContent = brl.format(a.despesas);
+    }
+
+    function limparFiltros(){
+      document.getElementById('fDataInicio').value = primeiroDiaMes();
+      document.getElementById('fDataFim').value = hojeISO();
+      document.getElementById('fTipo').value = '';
+      document.getElementById('fForma').value = '';
+      document.getElementById('fValorMin').value = '';
+      document.getElementById('fValorMax').value = '';
+      document.getElementById('fLimit').value = '100';
+      carregar();
+    }
+
+    function applyQueryParams(){
+      const params = new URLSearchParams(window.location.search);
+      const forma = params.get('forma');
+      const tipo = params.get('tipo');
+      const di = params.get('data_inicio');
+      const df = params.get('data_fim');
+      const vmin = params.get('valor_min');
+      const vmax = params.get('valor_max');
+      if (di) document.getElementById('fDataInicio').value = di;
+      if (df) document.getElementById('fDataFim').value = df;
+      if (tipo) document.getElementById('fTipo').value = tipo;
+      if (vmin) document.getElementById('fValorMin').value = vmin;
+      if (vmax) document.getElementById('fValorMax').value = vmax;
+      if (forma) document.getElementById('fForma').value = forma;
+    }
+
+    document.addEventListener('DOMContentLoaded', async ()=>{
+      document.getElementById('fDataInicio').value = primeiroDiaMes();
+      document.getElementById('fDataFim').value = hojeISO();
+      await carregarFormas();
+      applyQueryParams();
+      await carregar();
+    });
+  </script>
+</body>
+</html>

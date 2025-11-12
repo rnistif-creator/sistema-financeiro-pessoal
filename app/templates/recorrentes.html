@@ -1,0 +1,594 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Lançamentos Recorrentes</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    :root {
+      --bg: #0f172a;
+      --surface: #1e293b;
+      --card: #334155;
+      --text: #f1f5f9;
+      --muted: #94a3b8;
+      --primary: #22d3ee;
+      --primary-strong: #06b6d4;
+      --ring: rgba(34,211,238,0.2);
+      --success: #22c55e;
+      --danger: #ef4444;
+      --warning: #f59e0b;
+    }
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.6;
+      min-height: 100vh;
+    }
+    .container {
+      max-width: 1400px;
+      margin: 0 auto;
+      padding: 24px;
+    }
+    .header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 32px;
+      flex-wrap: wrap;
+      gap: 16px;
+    }
+    .title {
+      font-size: 32px;
+      font-weight: 800;
+      background: linear-gradient(135deg, var(--primary) 0%, #a855f7 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+    .nav-links {
+      display: flex;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+    .nav-btn {
+      padding: 8px 16px;
+      border-radius: 12px;
+      text-decoration: none;
+      color: var(--primary);
+      background: rgba(34,211,238,.07);
+      border: 1px dashed rgba(34,211,238,.25);
+      transition: all .2s ease;
+    }
+    .nav-btn:hover {
+      background: rgba(34,211,238,.12);
+      border-color: rgba(34,211,238,.35);
+    }
+    .btn {
+      padding: 10px 18px;
+      background: var(--primary);
+      color: var(--bg);
+      border: none;
+      border-radius: 8px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s;
+      font-size: 14px;
+    }
+    .btn:hover {
+      background: var(--primary-strong);
+      transform: translateY(-1px);
+    }
+    .btn-success {
+      background: var(--success);
+    }
+    .btn-success:hover {
+      background: #16a34a;
+    }
+    .btn-danger {
+      background: var(--danger);
+    }
+    .btn-danger:hover {
+      background: #dc2626;
+    }
+    .btn-secondary {
+      background: rgba(148,163,184,0.15);
+      color: var(--text);
+    }
+    .btn-secondary:hover {
+      background: rgba(148,163,184,0.25);
+    }
+    .card {
+      background: var(--card);
+      padding: 24px;
+      border-radius: 16px;
+      border: 1px solid rgba(148,163,184,0.1);
+      margin-bottom: 24px;
+    }
+    .form-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+      gap: 16px;
+      margin-bottom: 20px;
+    }
+    .form-group {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+    .form-group label {
+      font-weight: 600;
+      font-size: 14px;
+      color: var(--muted);
+    }
+    .form-group input, .form-group select, .form-group textarea {
+      padding: 10px 14px;
+      background: var(--surface);
+      border: 1px solid rgba(148,163,184,0.2);
+      border-radius: 8px;
+      color: var(--text);
+      font-size: 14px;
+    }
+    .form-group input:focus, .form-group select:focus, .form-group textarea:focus {
+      outline: none;
+      border-color: var(--primary);
+      box-shadow: 0 0 0 3px var(--ring);
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      background: var(--card);
+      border-radius: 12px;
+      overflow: hidden;
+    }
+    thead {
+      background: rgba(148,163,184,0.1);
+    }
+    thead th {
+      padding: 16px;
+      text-align: left;
+      font-size: 13px;
+      font-weight: 600;
+      border-bottom: 2px solid rgba(148,163,184,0.2);
+    }
+    tbody td {
+      padding: 16px;
+      border-bottom: 1px solid rgba(148,163,184,0.1);
+    }
+    tbody tr:hover {
+      background: rgba(34,211,238,0.05);
+    }
+    .badge {
+      display: inline-block;
+      padding: 4px 10px;
+      border-radius: 6px;
+      font-size: 12px;
+      font-weight: 600;
+    }
+    .badge.receita {
+      background: rgba(34,197,94,0.15);
+      color: #22c55e;
+    }
+    .badge.despesa {
+      background: rgba(239,68,68,0.15);
+      color: #ef4444;
+    }
+    .badge.ativo {
+      background: rgba(34,197,94,0.15);
+      color: #22c55e;
+    }
+    .badge.inativo {
+      background: rgba(148,163,184,0.15);
+      color: var(--muted);
+    }
+    .badge.mensal {
+      background: rgba(34,211,238,0.15);
+      color: var(--primary);
+    }
+    .badge.trimestral {
+      background: rgba(168,85,247,0.15);
+      color: #a855f7;
+    }
+    .badge.anual {
+      background: rgba(245,158,11,0.15);
+      color: var(--warning);
+    }
+    .empty-state {
+      text-align: center;
+      padding: 60px 20px;
+      color: var(--muted);
+    }
+    .empty-state-icon {
+      font-size: 48px;
+      margin-bottom: 16px;
+    }
+    .actions {
+      display: flex;
+      gap: 8px;
+    }
+    .btn-small {
+      padding: 6px 12px;
+      font-size: 12px;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+      font-weight: 600;
+      transition: all 0.2s;
+    }
+    .btn-edit {
+      background: rgba(59,130,246,0.15);
+      color: #3b82f6;
+    }
+    .btn-edit:hover {
+      background: rgba(59,130,246,0.25);
+    }
+    .btn-delete {
+      background: rgba(239,68,68,0.15);
+      color: #ef4444;
+    }
+    .btn-delete:hover {
+      background: rgba(239,68,68,0.25);
+    }
+    .btn-generate {
+      background: rgba(34,197,94,0.15);
+      color: #22c55e;
+    }
+    .btn-generate:hover {
+      background: rgba(34,197,94,0.25);
+    }
+    .btn-toggle {
+      background: rgba(148,163,184,0.15);
+      color: var(--muted);
+    }
+    .btn-toggle:hover {
+      background: rgba(148,163,184,0.25);
+    }
+    </style>
+  </head>
+  <body>
+    {% include '_app_sidebar.html' %}
+    <div class="container" id="main-content" tabindex="-1">
+    <div class="header">
+      <h1 class="title">🔁 Lançamentos Recorrentes</h1>
+      <div class="nav-links"></div>
+    </div>
+
+    <div class="card">
+      <h2 style="margin-bottom:20px; font-size:20px">📝 Novo Lançamento Recorrente</h2>
+      <form id="formRecorrente" onsubmit="salvarRecorrente(event)">
+        <input type="hidden" id="recorrenteId">
+        <div class="form-grid">
+          <div class="form-group">
+            <label>Tipo *</label>
+            <select id="tipo" required>
+              <option value="">Selecione...</option>
+              <option value="receita">📈 Receita</option>
+              <option value="despesa">📉 Despesa</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Categoria</label>
+            <select id="tipoLancamentoId">
+              <option value="">Sem categoria</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Fornecedor/Descrição *</label>
+            <input type="text" id="fornecedor" required>
+          </div>
+          <div class="form-group">
+            <label>Valor Total (R$) *</label>
+            <input type="number" id="valorTotal" step="0.01" min="0" required>
+          </div>
+          <div class="form-group">
+            <label>Dia de Vencimento *</label>
+            <input type="number" id="diaVencimento" min="1" max="31" required>
+          </div>
+          <div class="form-group">
+            <label>Número de Parcelas *</label>
+            <input type="number" id="numeroParcelas" min="1" required>
+          </div>
+          <div class="form-group">
+            <label>Frequência *</label>
+            <select id="frequencia" required>
+              <option value="">Selecione...</option>
+              <option value="mensal">📅 Mensal</option>
+              <option value="trimestral">📆 Trimestral</option>
+              <option value="anual">🗓️ Anual</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Data de Início *</label>
+            <input type="date" id="dataInicio" required>
+          </div>
+        </div>
+        <div class="form-group" style="margin-bottom:20px">
+          <label>Observações</label>
+          <textarea id="observacao" rows="3"></textarea>
+        </div>
+        <div style="display:flex; gap:12px">
+          <button type="submit" class="btn btn-success">💾 Salvar</button>
+          <button type="button" class="btn btn-secondary" onclick="cancelarEdicao()">✖️ Cancelar</button>
+        </div>
+      </form>
+    </div>
+
+    <div id="listaContainer">
+      <!-- Lista será inserida aqui -->
+    </div>
+  </div>
+
+  <script{%- if csp_nonce %} nonce="{{ csp_nonce }}"{%- endif %}>
+    // API_BASE, brl, todayISO() now come from config.js
+
+    async function carregarTipos() {
+      try {
+        const res = await fetch(`${API_BASE}/api/tipos`);
+        if (!res.ok) throw new Error('Erro ao carregar tipos');
+        
+        const tipos = await res.json();
+        const select = document.getElementById('tipoLancamentoId');
+        
+        // Limpar opções existentes exceto a primeira
+        while (select.options.length > 1) {
+          select.remove(1);
+        }
+        
+        tipos.forEach(tipo => {
+          const opt = document.createElement('option');
+          opt.value = tipo.id;
+          opt.textContent = `${tipo.natureza === 'receita' ? '📈' : '📉'} ${tipo.nome}`;
+          opt.dataset.natureza = tipo.natureza;
+          select.appendChild(opt);
+        });
+      } catch (err) {
+        console.error('Erro ao carregar tipos:', err);
+        Toast.show('Erro ao carregar categorias', 'error');
+      }
+    }
+
+    // Filtrar tipos por natureza selecionada
+    document.getElementById('tipo').addEventListener('change', function() {
+      const natureza = this.value;
+      const select = document.getElementById('tipoLancamentoId');
+      
+      Array.from(select.options).forEach((opt, index) => {
+        if (index === 0) return; // Pular primeira opção
+        
+        if (!natureza || opt.dataset.natureza === natureza) {
+          opt.style.display = '';
+        } else {
+          opt.style.display = 'none';
+        }
+      });
+      
+      select.value = '';
+    });
+
+    async function carregarRecorrentes() {
+      try {
+        const recorrentes = await fetchWithLoading(`${API_BASE}/api/recorrentes`, {}, 'Carregando recorrentes...');
+        renderLista(recorrentes);
+      } catch (err) {
+        console.error(err);
+        document.getElementById('listaContainer').innerHTML = `
+          <div class="empty-state">
+            <div class="empty-state-icon">❌</div>
+            <p>Erro ao carregar lançamentos recorrentes</p>
+          </div>
+        `;
+        Toast.show('Erro ao carregar recorrentes', 'error');
+      }
+    }
+
+    function renderLista(recorrentes) {
+      if (!recorrentes || recorrentes.length === 0) {
+        document.getElementById('listaContainer').innerHTML = `
+          <div class="empty-state">
+            <div class="empty-state-icon">📭</div>
+            <p>Nenhum lançamento recorrente cadastrado</p>
+          </div>
+        `;
+        return;
+      }
+
+      const rows = recorrentes.map(r => `
+        <tr>
+          <td><span class="badge ${r.tipo}">${r.tipo === 'receita' ? '📈' : '📉'} ${r.tipo}</span></td>
+          <td>${r.fornecedor}</td>
+          <td style="font-weight:600">${brl.format(r.valor_total)}</td>
+          <td>Dia ${r.dia_vencimento}</td>
+          <td>${r.numero_parcelas}x</td>
+          <td><span class="badge ${r.frequencia}">${r.frequencia}</span></td>
+          <td><span class="badge ${r.ativo ? 'ativo' : 'inativo'}">${r.ativo ? '✓ Ativo' : '✗ Inativo'}</span></td>
+          <td>${r.ultima_geracao || '-'}</td>
+          <td>
+            <div class="actions">
+              <button class="btn-small btn-generate" onclick="gerarLancamento(${r.id})" title="Gerar Lançamento">
+                ⚡ Gerar
+              </button>
+              <button class="btn-small btn-toggle" onclick="toggleRecorrente(${r.id})" title="${r.ativo ? 'Desativar' : 'Ativar'}">
+                ${r.ativo ? '⏸️' : '▶️'}
+              </button>
+              <button class="btn-small btn-edit" onclick="editarRecorrente(${r.id})" title="Editar">
+                ✏️
+              </button>
+              <button class="btn-small btn-delete" onclick="excluirRecorrente(${r.id})" title="Excluir">
+                🗑️
+              </button>
+            </div>
+          </td>
+        </tr>
+      `).join('');
+
+      document.getElementById('listaContainer').innerHTML = `
+        <table>
+          <thead>
+            <tr>
+              <th>Tipo</th>
+              <th>Descrição</th>
+              <th>Valor</th>
+              <th>Vencimento</th>
+              <th>Parcelas</th>
+              <th>Frequência</th>
+              <th>Status</th>
+              <th>Última Geração</th>
+              <th style="width:200px">Ações</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${rows}
+          </tbody>
+        </table>
+      `;
+    }
+
+    async function salvarRecorrente(event) {
+      event.preventDefault();
+      
+      const id = document.getElementById('recorrenteId').value;
+      const dados = {
+        tipo: document.getElementById('tipo').value,
+        tipo_lancamento_id: document.getElementById('tipoLancamentoId').value || null,
+        fornecedor: document.getElementById('fornecedor').value,
+        valor_total: parseFloat(document.getElementById('valorTotal').value),
+        dia_vencimento: parseInt(document.getElementById('diaVencimento').value),
+        numero_parcelas: parseInt(document.getElementById('numeroParcelas').value),
+        frequencia: document.getElementById('frequencia').value,
+        data_inicio: document.getElementById('dataInicio').value,
+        observacao: document.getElementById('observacao').value || null
+      };
+
+      try {
+        const url = id ? `${API_BASE}/api/recorrentes/${id}` : `${API_BASE}/api/recorrentes`;
+        const method = id ? 'PUT' : 'POST';
+        
+        await fetchWithLoading(url, {
+          method: method,
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(dados)
+        }, id ? 'Atualizando recorrente...' : 'Criando recorrente...');
+
+        Toast.show(id ? 'Recorrente atualizado!' : 'Recorrente criado!', 'success');
+        cancelarEdicao();
+        carregarRecorrentes();
+      } catch (err) {
+        console.error(err);
+        Toast.show(err.message || 'Erro ao salvar recorrente', 'error');
+      }
+    }
+
+    async function editarRecorrente(id) {
+      try {
+        const res = await fetch(`${API_BASE}/api/recorrentes`);
+        const recorrentes = await res.json();
+        const recorrente = recorrentes.find(r => r.id === id);
+        
+        if (!recorrente) throw new Error('Recorrente não encontrado');
+
+        document.getElementById('recorrenteId').value = recorrente.id;
+        document.getElementById('tipo').value = recorrente.tipo;
+        document.getElementById('tipo').dispatchEvent(new Event('change'));
+        document.getElementById('tipoLancamentoId').value = recorrente.tipo_lancamento_id || '';
+        document.getElementById('fornecedor').value = recorrente.fornecedor;
+        document.getElementById('valorTotal').value = recorrente.valor_total;
+        document.getElementById('diaVencimento').value = recorrente.dia_vencimento;
+        document.getElementById('numeroParcelas').value = recorrente.numero_parcelas;
+        document.getElementById('frequencia').value = recorrente.frequencia;
+        document.getElementById('dataInicio').value = recorrente.data_inicio;
+        document.getElementById('observacao').value = recorrente.observacao || '';
+
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+      } catch (err) {
+        console.error(err);
+        Toast.show('Erro ao carregar recorrente', 'error');
+      }
+    }
+
+    function cancelarEdicao() {
+      document.getElementById('formRecorrente').reset();
+      document.getElementById('recorrenteId').value = '';
+      document.getElementById('dataInicio').value = todayISO();
+    }
+
+    async function excluirRecorrente(id) {
+      ConfirmDialog.show({
+        title: 'Excluir recorrente',
+        message: 'Deseja realmente excluir este lançamento recorrente?',
+        confirmText: 'Excluir',
+        cancelText: 'Cancelar',
+        variant: 'danger',
+        onConfirm: async () => {
+          try {
+            await fetchWithLoading(`${API_BASE}/api/recorrentes/${id}`, { method: 'DELETE' }, 'Excluindo...');
+            Toast.show('Recorrente excluído!', 'success');
+            carregarRecorrentes();
+          } catch (err) {
+            console.error(err);
+            Toast.show(err.message || 'Erro ao excluir recorrente', 'error');
+          }
+        }
+      });
+    }
+
+    async function toggleRecorrente(id) {
+      try {
+        await fetchWithLoading(`${API_BASE}/api/recorrentes/${id}/toggle`, { method: 'PATCH' }, 'Atualizando status...');
+        carregarRecorrentes();
+        Toast.show('Status atualizado', 'success');
+      } catch (err) {
+        console.error(err);
+        Toast.show(err.message || 'Erro ao alternar status', 'error');
+      }
+    }
+
+    async function gerarLancamento(id) {
+      ConfirmDialog.show({
+        title: 'Gerar lançamento',
+        message: 'Deseja gerar um novo lançamento a partir deste template?',
+        confirmText: 'Gerar',
+        cancelText: 'Cancelar',
+        onConfirm: async () => {
+          try {
+            const result = await fetchWithLoading(`${API_BASE}/api/recorrentes/${id}/gerar`, { method: 'POST' }, 'Gerando lançamento...');
+            Toast.show(`Lançamento #${result.lancamento_id} gerado com sucesso!`, 'success');
+            carregarRecorrentes();
+          } catch (err) {
+            console.error(err);
+            Toast.show(err.message || 'Erro ao gerar lançamento', 'error');
+          }
+        }
+      });
+    }
+
+    // Inicializar
+    document.getElementById('dataInicio').value = todayISO();
+    carregarTipos();
+    carregarRecorrentes();
+
+    // Atalhos de teclado
+    document.addEventListener('keydown', (e) => {
+      if (e.ctrlKey && !e.shiftKey && !e.altKey) {
+        switch (e.key.toLowerCase()) {
+          case 'n':
+            e.preventDefault();
+            cancelarEdicao();
+            document.getElementById('tipo').focus();
+            Toast.show('Formulário pronto para novo recorrente', 'info');
+            break;
+          case 's':
+            e.preventDefault();
+            const form = document.getElementById('formRecorrente');
+            if (form) form.requestSubmit();
+            break;
+          case 'r':
+            e.preventDefault();
+            carregarRecorrentes();
+            break;
+        }
+      }
+    });
+  </script>
+</body>
+</html>

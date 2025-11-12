@@ -1,0 +1,510 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Projeção de Fluxo de Caixa</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    <style>
+      * { margin: 0; padding: 0; box-sizing: border-box; }
+      :root {
+        --bg: #0f172a;
+        --surface: #1e293b;
+        --card: #334155;
+        --text: #f1f5f9;
+        --muted: #94a3b8;
+        --primary: #22d3ee;
+        --primary-strong: #06b6d4;
+        --ring: rgba(34,211,238,0.2);
+        --success: #22c55e;
+        --danger: #ef4444;
+        --warning: #f59e0b;
+      }
+      body {
+        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        background: var(--bg);
+        color: var(--text);
+        line-height: 1.6;
+        min-height: 100vh;
+      }
+      .container {
+        max-width: 1400px;
+        margin: 0 auto;
+        padding: 24px;
+      }
+      .header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 32px;
+        flex-wrap: wrap;
+        gap: 16px;
+      }
+      /* Usar .title base do components.css para padronizar com as demais telas */
+      .nav-links {
+        display: flex;
+        gap: 12px;
+        flex-wrap: wrap;
+      }
+      .nav-btn {
+        padding: 8px 16px;
+        border-radius: 12px;
+        text-decoration: none;
+        color: var(--primary);
+        background: rgba(34,211,238,.07);
+        border: 1px dashed rgba(34,211,238,.25);
+        transition: all .2s ease;
+      }
+      .nav-btn:hover {
+        background: rgba(34,211,238,.12);
+        border-color: rgba(34,211,238,.35);
+      }
+      .filters {
+        background: var(--card);
+        padding: 24px;
+        border-radius: 16px;
+        margin-bottom: 24px;
+        display: flex;
+        gap: 16px;
+        flex-wrap: wrap;
+        align-items: flex-end;
+        border: 1px solid rgba(148,163,184,0.1);
+      }
+      .filter-group {
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+        flex: 1;
+        min-width: 150px;
+      }
+      .filter-group label {
+        font-weight: 600;
+        font-size: 14px;
+        color: var(--muted);
+      }
+      input[type="date"], input[type="number"] {
+        padding: 10px 14px;
+        background: var(--surface);
+        border: 1px solid rgba(148,163,184,0.2);
+        border-radius: 8px;
+        color: var(--text);
+        font-size: 14px;
+      }
+      input[type="date"]:focus, input[type="number"]:focus {
+        outline: none;
+        border-color: var(--primary);
+        box-shadow: 0 0 0 3px var(--ring);
+      }
+      .btn {
+        padding: 10px 18px;
+        background: var(--primary);
+        color: var(--bg);
+        border: none;
+        border-radius: 8px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.2s;
+      }
+      .btn:hover {
+        background: var(--primary-strong);
+        transform: translateY(-1px);
+      }
+      .resumo-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+        gap: 16px;
+        margin-bottom: 24px;
+      }
+      .resumo-card {
+        background: var(--card);
+        padding: 20px;
+        border-radius: 12px;
+        border: 1px solid rgba(148,163,184,0.1);
+      }
+      .resumo-label {
+        font-size: 13px;
+        color: var(--muted);
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        margin-bottom: 8px;
+      }
+      .resumo-value {
+        font-size: 28px;
+        font-weight: 700;
+        line-height: 1.2;
+      }
+      .resumo-value.success {
+        color: var(--success);
+      }
+      .resumo-value.danger {
+        color: var(--danger);
+      }
+      .resumo-value.primary {
+        color: var(--primary);
+      }
+      .resumo-value.warning {
+        color: var(--warning);
+      }
+      .chart-container {
+        background: var(--card);
+        padding: 24px;
+        border-radius: 16px;
+        border: 1px solid rgba(148,163,184,0.1);
+        margin-bottom: 24px;
+      }
+      .chart-title {
+        font-size: 18px;
+        font-weight: 700;
+        margin-bottom: 20px;
+        color: var(--text);
+      }
+      .chart-wrapper {
+        position: relative;
+        height: 400px;
+      }
+      .empty-state {
+        text-align: center;
+        padding: 60px 20px;
+        color: var(--muted);
+      }
+      .empty-state-icon {
+        font-size: 48px;
+        margin-bottom: 16px;
+      }
+      .quick-filters {
+        display: flex;
+        gap: 8px;
+        flex-wrap: wrap;
+      }
+      .quick-filter-btn {
+        padding: 8px 14px;
+        background: rgba(148,163,184,0.1);
+        color: var(--text);
+        border: 1px solid rgba(148,163,184,0.2);
+        border-radius: 8px;
+        font-size: 13px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.2s;
+      }
+      .quick-filter-btn:hover, .quick-filter-btn.active {
+        background: rgba(168,85,247,0.3);
+        border-color: #a855f7;
+      }
+    </style>
+  </head>
+  <body>
+    {% include '_app_sidebar.html' %}
+    <div class="container" id="main-content">
+      <div class="header">
+        <h1 class="title">📊 Projeção de Fluxo de Caixa</h1>
+        <div class="nav-links"></div>
+      </div>
+
+      <div class="filters">
+        <div class="filter-group">
+          <label>Período Rápido</label>
+          <div class="quick-filters">
+            <button class="quick-filter-btn" onclick="aplicarFiltroRapido(this, 30)">30 dias</button>
+            <button class="quick-filter-btn active" onclick="aplicarFiltroRapido(this, 60)">60 dias</button>
+            <button class="quick-filter-btn" onclick="aplicarFiltroRapido(this, 90)">90 dias</button>
+            <button class="quick-filter-btn" onclick="aplicarFiltroRapido(this, 180)">6 meses</button>
+            <button class="quick-filter-btn" onclick="aplicarFiltroRapido(this, 365)">1 ano</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="filters">
+        <div class="filter-group">
+          <label>Data Início</label>
+          <input type="date" id="dataInicio">
+        </div>
+        
+        <div class="filter-group">
+          <label>Data Fim</label>
+          <input type="date" id="dataFim">
+        </div>
+
+        <div class="filter-group">
+          <label>Saldo Inicial (R$)</label>
+          <input type="number" id="saldoInicial" step="0.01" value="0.00">
+        </div>
+
+        <div class="filter-group" style="flex:0">
+          <button class="btn" onclick="carregarFluxo()">🔍 Atualizar</button>
+        </div>
+      </div>
+
+      <div id="resumoContainer" class="resumo-grid">
+        <!-- Resumo será inserido aqui -->
+      </div>
+
+      <div class="chart-container">
+        <h3 class="chart-title">📈 Fluxo de Caixa Projetado</h3>
+        <div class="chart-wrapper">
+          <canvas id="chartFluxo"></canvas>
+        </div>
+      </div>
+
+      <div class="chart-container">
+        <h3 class="chart-title">💰 Saldo Acumulado</h3>
+        <div class="chart-wrapper">
+          <canvas id="chartSaldo"></canvas>
+        </div>
+      </div>
+    </div>
+
+    <script{%- if csp_nonce %} nonce="{{ csp_nonce }}"{%- endif %}>
+      // API_BASE, brl, todayISO() now come from config.js
+      let chartFluxo = null;
+      let chartSaldo = null;
+
+      function todayISO() {
+        return new Date().toISOString().split('T')[0];
+      }
+
+      function addDays(date, days) {
+        const result = new Date(date);
+        result.setDate(result.getDate() + days);
+        return result.toISOString().split('T')[0];
+      }
+
+      function aplicarFiltroRapido(el, dias) {
+        // Remover active de todos os botões
+        document.querySelectorAll('.quick-filter-btn').forEach(btn => btn.classList.remove('active'));
+        // Adicionar active ao botão clicado
+        if (el) el.classList.add('active');
+        
+        const hoje = todayISO();
+        const fim = addDays(new Date(), dias);
+        
+        document.getElementById('dataInicio').value = hoje;
+        document.getElementById('dataFim').value = fim;
+        
+        carregarFluxo();
+      }
+
+      async function carregarFluxo() {
+        const dataInicio = document.getElementById('dataInicio').value;
+        const dataFim = document.getElementById('dataFim').value;
+        const saldoInicial = parseFloat(document.getElementById('saldoInicial').value) || 0;
+
+        if (!dataInicio || !dataFim) {
+          Toast.warning('Por favor, selecione as datas de início e fim');
+          return;
+        }
+
+        try {
+          const data = await fetchWithLoading(
+            `${API_BASE}/api/fluxo-caixa?data_inicio=${dataInicio}&data_fim=${dataFim}&saldo_inicial=${saldoInicial}`,
+            {},
+            true
+          );
+          renderResumo(data.resumo);
+          renderCharts(data.fluxo);
+        } catch (err) {
+          console.error(err);
+          Toast.error('Erro ao carregar fluxo de caixa: ' + err.message);
+        }
+      }
+
+      function renderResumo(resumo) {
+        const html = `
+          <div class="resumo-card">
+            <div class="resumo-label">💵 Saldo Inicial</div>
+            <div class="resumo-value primary">${brl.format(resumo.saldo_inicial)}</div>
+          </div>
+          <div class="resumo-card">
+            <div class="resumo-label">📈 Total Receitas</div>
+            <div class="resumo-value success">+${brl.format(resumo.total_receitas)}</div>
+          </div>
+          <div class="resumo-card">
+            <div class="resumo-label">📉 Total Despesas</div>
+            <div class="resumo-value danger">-${brl.format(resumo.total_despesas)}</div>
+          </div>
+          <div class="resumo-card">
+            <div class="resumo-label">💰 Saldo Final</div>
+            <div class="resumo-value ${resumo.saldo_final >= 0 ? 'success' : 'danger'}">${brl.format(resumo.saldo_final)}</div>
+          </div>
+        `;
+        document.getElementById('resumoContainer').innerHTML = html;
+      }
+
+      function renderCharts(fluxo) {
+        if (fluxo.length === 0) {
+          document.querySelector('.chart-wrapper').innerHTML = `
+            <div class="empty-state">
+              <div class="empty-state-icon">📭</div>
+              <p>Nenhum dado de fluxo de caixa no período selecionado</p>
+            </div>
+          `;
+          return;
+        }
+
+        // Preparar dados
+        const labels = fluxo.map(f => {
+          const d = new Date(f.data + 'T00:00:00');
+          return d.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' });
+        });
+        const receitas = fluxo.map(f => f.receitas);
+        const despesas = fluxo.map(f => f.despesas);
+        const saldos = fluxo.map(f => f.saldo_acumulado);
+
+        // Gráfico de Fluxo (Receitas vs Despesas)
+        const ctxFluxo = document.getElementById('chartFluxo');
+        if (chartFluxo) {
+          chartFluxo.destroy();
+        }
+        
+        chartFluxo = new Chart(ctxFluxo, {
+          type: 'bar',
+          data: {
+            labels: labels,
+            datasets: [
+              {
+                label: 'Receitas',
+                data: receitas,
+                backgroundColor: 'rgba(34, 197, 94, 0.7)',
+                borderColor: 'rgba(34, 197, 94, 1)',
+                borderWidth: 2
+              },
+              {
+                label: 'Despesas',
+                data: despesas,
+                backgroundColor: 'rgba(239, 68, 68, 0.7)',
+                borderColor: 'rgba(239, 68, 68, 1)',
+                borderWidth: 2
+              }
+            ]
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+              legend: {
+                display: true,
+                position: 'top',
+                labels: {
+                  color: '#f1f5f9',
+                  font: { size: 14, weight: 'bold' }
+                }
+              },
+              tooltip: {
+                callbacks: {
+                  label: function(context) {
+                    return context.dataset.label + ': ' + brl.format(context.parsed.y);
+                  }
+                }
+              }
+            },
+            scales: {
+              x: {
+                grid: { color: 'rgba(148, 163, 184, 0.1)' },
+                ticks: { 
+                  color: '#94a3b8',
+                  maxRotation: 45,
+                  minRotation: 45
+                }
+              },
+              y: {
+                grid: { color: 'rgba(148, 163, 184, 0.1)' },
+                ticks: { 
+                  color: '#94a3b8',
+                  callback: function(value) {
+                    return brl.format(value);
+                  }
+                }
+              }
+            }
+          }
+        });
+
+        // Gráfico de Saldo Acumulado
+        const ctxSaldo = document.getElementById('chartSaldo');
+        if (chartSaldo) {
+          chartSaldo.destroy();
+        }
+        
+        chartSaldo = new Chart(ctxSaldo, {
+          type: 'line',
+          data: {
+            labels: labels,
+            datasets: [
+              {
+                label: 'Saldo Acumulado',
+                data: saldos,
+                backgroundColor: 'rgba(34, 211, 238, 0.1)',
+                borderColor: 'rgba(34, 211, 238, 1)',
+                borderWidth: 3,
+                fill: true,
+                tension: 0.4
+              }
+            ]
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+              legend: {
+                display: true,
+                position: 'top',
+                labels: {
+                  color: '#f1f5f9',
+                  font: { size: 14, weight: 'bold' }
+                }
+              },
+              tooltip: {
+                callbacks: {
+                  label: function(context) {
+                    return 'Saldo: ' + brl.format(context.parsed.y);
+                  }
+                }
+              }
+            },
+            scales: {
+              x: {
+                grid: { color: 'rgba(148, 163, 184, 0.1)' },
+                ticks: { 
+                  color: '#94a3b8',
+                  maxRotation: 45,
+                  minRotation: 45
+                }
+              },
+              y: {
+                grid: { color: 'rgba(148, 163, 184, 0.1)' },
+                ticks: { 
+                  color: '#94a3b8',
+                  callback: function(value) {
+                    return brl.format(value);
+                  }
+                }
+              }
+            }
+          }
+        });
+      }
+
+      // Inicializar
+      const hoje = todayISO();
+      const em60dias = addDays(new Date(), 60);
+      document.getElementById('dataInicio').value = hoje;
+      document.getElementById('dataFim').value = em60dias;
+      carregarFluxo();
+
+      // ============================================
+      // ATALHOS DE TECLADO
+      // ============================================
+      KeyboardShortcuts.register('ctrl+r', () => {
+        carregarFluxo();
+        Toast.info('Fluxo atualizado!');
+      }, 'Atualizar fluxo de caixa');
+
+      KeyboardShortcuts.register('ctrl+1', () => aplicarFiltroRapido(document.querySelector('.quick-filters button:nth-child(1)'), 30), 'Período 30 dias');
+      KeyboardShortcuts.register('ctrl+2', () => aplicarFiltroRapido(document.querySelector('.quick-filters button:nth-child(2)'), 60), 'Período 60 dias');
+      KeyboardShortcuts.register('ctrl+3', () => aplicarFiltroRapido(document.querySelector('.quick-filters button:nth-child(3)'), 90), 'Período 90 dias');
+      KeyboardShortcuts.register('ctrl+4', () => aplicarFiltroRapido(document.querySelector('.quick-filters button:nth-child(4)'), 180), 'Período 6 meses');
+      KeyboardShortcuts.register('ctrl+5', () => aplicarFiltroRapido(document.querySelector('.quick-filters button:nth-child(5)'), 365), 'Período 1 ano');
+    </script>
+  </body>
+</html>

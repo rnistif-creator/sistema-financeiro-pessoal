@@ -1,0 +1,761 @@
+<!-- PWA Meta Tags -->
+<meta name="theme-color" content="#22d3ee">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Financeiro">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=5, user-scalable=yes">
+<link rel="manifest" href="/static/manifest.json">
+<link rel="icon" href="/static/favicon.ico">
+<link rel="icon" type="image/png" sizes="32x32" href="/static/icons/icon-32x32.png">
+<link rel="icon" type="image/png" sizes="16x16" href="/static/icons/icon-16x16.png">
+<link rel="icon" type="image/png" sizes="192x192" href="/static/icons/icon-192x192.png">
+<link rel="apple-touch-icon" href="/static/icons/icon-192x192.png">
+<link rel="apple-touch-icon" sizes="152x152" href="/static/icons/icon-152x152.png">
+<link rel="apple-touch-icon" sizes="144x144" href="/static/icons/icon-144x144.png">
+
+<!-- Configuração Global -->
+<script src="/static/config.js?v=20251105b"></script>
+
+<!-- Componentes de Feedback Visual e Acessibilidade -->
+<link rel="stylesheet" href="/static/components.css?v=20251105d">
+<script src="/static/components.js?v=20251105d"></script>
+<!-- Delegação de Eventos (remove necessidade de handlers inline) -->
+<script src="/static/events.js?v=20251107a"></script>
+
+<!-- Skip to Content Link (Acessibilidade) -->
+<a href="#main-content" class="skip-to-content">Pular para o conteúdo principal</a>
+
+<!-- Sidebar de Navegação Global -->
+<style>
+  .app-nav-button{
+    position: fixed; top: 16px; left: 16px; z-index: 1100;
+    padding: 10px 12px; border-radius: 10px;
+    border: 1px solid rgba(148,163,184,0.25);
+    background: rgba(15,23,42,0.55); color: var(--text);
+    cursor: pointer; font-weight: 600;
+  }
+  
+  /* Botão de Notificações */
+  .notification-button {
+    position: fixed; top: 16px; right: 16px; z-index: 1100;
+    padding: 10px 12px; border-radius: 10px;
+    border: 1px solid rgba(148,163,184,0.25);
+    background: rgba(15,23,42,0.55); color: var(--text);
+    cursor: pointer; font-weight: 600;
+    font-size: 20px;
+    display: flex; align-items: center; gap: 8px;
+  }
+  .notification-button:hover {
+    background: rgba(15,23,42,0.75);
+  }
+  .notification-badge {
+    background: #ef4444;
+    color: white;
+    border-radius: 50%;
+    width: 20px;
+    height: 20px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 11px;
+    font-weight: bold;
+  }
+  
+  /* Dropdown de Notificações */
+  .notification-dropdown {
+    position: fixed;
+    top: 70px;
+    right: 16px;
+    width: 380px;
+    max-width: calc(100vw - 32px);
+    max-height: 500px;
+    background: var(--card);
+    border: 1px solid rgba(148,163,184,0.2);
+    border-radius: 12px;
+    box-shadow: 0 10px 40px rgba(0,0,0,0.3);
+    z-index: 1099;
+    display: none;
+    flex-direction: column;
+  }
+  .notification-dropdown.show {
+    display: flex;
+  }
+  .notification-header {
+    padding: 16px;
+    border-bottom: 1px solid rgba(148,163,184,0.1);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  .notification-header h3 {
+    margin: 0;
+    font-size: 16px;
+    font-weight: 600;
+  }
+  .notification-list {
+    overflow-y: auto;
+    flex: 1;
+  }
+  .notification-item {
+    padding: 12px 16px;
+    border-bottom: 1px solid rgba(148,163,184,0.08);
+    cursor: pointer;
+    transition: background 0.2s;
+  }
+  .notification-item:hover {
+    background: rgba(148,163,184,0.05);
+  }
+  .notification-item.vencida {
+    border-left: 3px solid #ef4444;
+    background: rgba(239, 68, 68, 0.05);
+  }
+  .notification-item.vence_hoje {
+    border-left: 3px solid #f59e0b;
+    background: rgba(245, 158, 11, 0.05);
+  }
+  .notification-item.vence_proximamente {
+    border-left: 3px solid #3b82f6;
+    background: rgba(59, 130, 246, 0.05);
+  }
+  .notification-title {
+    font-weight: 600;
+    font-size: 14px;
+    margin-bottom: 4px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  .notification-message {
+    font-size: 13px;
+    color: var(--muted);
+    margin-bottom: 4px;
+  }
+  .notification-value {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--primary);
+  }
+  .notification-empty {
+    padding: 40px 16px;
+    text-align: center;
+    color: var(--muted);
+  }
+  .notification-footer {
+    padding: 12px 16px;
+    border-top: 1px solid rgba(148,163,184,0.1);
+    text-align: center;
+  }
+  .notification-footer a {
+    color: var(--primary);
+    text-decoration: none;
+    font-size: 14px;
+    font-weight: 600;
+  }
+  .notification-footer a:hover {
+    text-decoration: underline;
+  }
+  
+  #navOverlay{ display:none; position:fixed; inset:0; background:rgba(0,0,0,0.6); z-index:1090; }
+  #appSidebar{
+    position:fixed; top:0; left:0; bottom:0; width:260px; max-width:90vw;
+    background: var(--card); color: var(--text);
+    border-right: 1px solid rgba(148,163,184,0.15);
+    transform: translateX(-100%); transition: transform .25s ease; z-index: 1100;
+    display:flex; flex-direction:column;
+  }
+  #appSidebar .side-header{ display:flex; align-items:center; justify-content:space-between; padding:16px; border-bottom:1px solid rgba(148,163,184,0.12); }
+  #appSidebar .side-header strong{ font-size: 16px; }
+  #appSidebar .side-close{ background:transparent; color:var(--text); border:none; font-size:20px; cursor:pointer; }
+  #appSidebar nav{ padding:10px 8px; overflow:auto; }
+  #appSidebar a{
+    display:flex; align-items:center; gap:10px; text-decoration:none;
+    color: var(--text); padding:10px 12px; border-radius:8px;
+  }
+  #appSidebar a:hover{ background: rgba(148,163,184,0.12); }
+  #appSidebar a.active{
+    background: rgba(34,211,238,0.12);
+    border-left: 3px solid var(--primary);
+  }
+  #appSidebar .section-title{ padding: 10px 12px; color: var(--muted); font-weight:700; font-size:12px; text-transform: uppercase; letter-spacing: .6px; }
+  
+  @media (max-width: 640px){ 
+    .app-nav-button{ top: 12px; left: 12px; }
+    .notification-button { top: 12px; right: 12px; }
+    .notification-dropdown { 
+      top: 60px; 
+      right: 12px;
+      left: 12px;
+      width: auto;
+    }
+  }
+
+  /* Docked layout on desktop */
+  @media (min-width: 1024px){
+    #appSidebar{ transform: translateX(0) !important; }
+    #navOverlay{ display: none !important; }
+    .app-nav-button{ display: none !important; }
+    body > .container{ margin-left: 260px; }
+  }
+
+  /* Barra de status da assinatura */
+  .billing-status {
+    position: fixed;
+    top: 66px;
+    right: 16px;
+    z-index: 1085;
+    background: var(--card);
+    color: var(--text);
+    border: 1px solid rgba(148,163,184,0.2);
+    border-left-width: 3px;
+    padding: 10px 12px;
+    border-radius: 10px;
+    min-width: 240px;
+    display: none;
+  }
+  .billing-status.show { display: block; }
+  .billing-status .title { font-size: 13px; font-weight: 700; margin-bottom: 4px; }
+  .billing-status .desc { font-size: 12px; color: var(--muted); }
+  .billing-status .actions { margin-top: 8px; display: flex; gap: 8px; }
+  .billing-status .btn {
+    padding: 8px 10px; border-radius: 8px; border: none; cursor: pointer; font-weight: 600; font-size: 12px;
+  }
+  .billing-status .btn-primary { background: linear-gradient(135deg, #22d3ee, #06b6d4); color: #001018; }
+  .billing-status .btn-outline { background: transparent; color: var(--text); border: 1px solid rgba(148,163,184,0.3); }
+  .billing-status.trial { border-left-color: #06b6d4; }
+  .billing-status.ativa { border-left-color: #22c55e; }
+  .billing-status.inadimplente { border-left-color: #ef4444; }
+  .billing-status.cancelada { border-left-color: #9ca3af; }
+  .billing-status .mini-form { margin-top: 8px; display: none; gap: 6px; align-items: center; }
+  .billing-status .mini-form input, .billing-status .mini-form select {
+    background: rgba(2,6,23,0.6); color: var(--text); border: 1px solid rgba(148,163,184,0.25); border-radius: 8px; padding: 6px 8px; font-size: 12px;
+  }
+  .billing-status .mini-form .btn-confirm { padding: 6px 10px; border-radius: 8px; border: none; background: #22c55e; color: #001018; font-weight: 700; cursor: pointer; }
+</style>
+
+<!-- Botão de Menu -->
+<button id="btnOpenAppSidebar" class="app-nav-button">☰ Menu</button>
+
+<!-- Botão de Notificações -->
+<button id="btnNotifications" class="notification-button" aria-label="Notificações" title="Notificações">
+  🔔
+  <span id="notificationBadge" class="notification-badge" style="display: none;">0</span>
+</button>
+
+<!-- Barra de Status da Assinatura -->
+<div id="billingStatus" class="billing-status" aria-live="polite"></div>
+
+<!-- Dropdown de Notificações -->
+<div id="notificationDropdown" class="notification-dropdown">
+  <div class="notification-header">
+    <h3>🔔 Notificações</h3>
+    <button id="btnCloseNotifications" style="background: transparent; border: none; color: var(--text); cursor: pointer; font-size: 18px;">✕</button>
+  </div>
+  <div class="notification-list" id="notificationList">
+    <div class="notification-empty">
+      <div style="font-size: 48px; margin-bottom: 8px;">🔔</div>
+      <div>Carregando notificações...</div>
+    </div>
+  </div>
+  <div class="notification-footer">
+    <a href="/parcelas">Ver todas as parcelas →</a>
+  </div>
+</div>
+
+<div id="navOverlay" aria-hidden="true"></div>
+<aside id="appSidebar" role="navigation" aria-label="Menu principal">
+  <div class="side-header">
+    <strong>💼 Financeiro</strong>
+    <button id="btnCloseAppSidebar" class="side-close" aria-label="Fechar">✕</button>
+  </div>
+  <nav>
+    <div class="section-title">Geral</div>
+    <a href="/dashboard">📈 Dashboard</a>
+    <a href="/lancamentos">🏠 Lançamentos</a>
+    <a href="/parcelas">📅 Parcelas</a>
+    <a href="/fluxo-caixa">📊 Fluxo de Caixa</a>
+    <a href="/tipos">🏷️ Tipos</a>
+    <a href="/metas">🎯 Metas</a>
+    <a href="/formas-pagamento">💳 Formas de Pagamento</a>
+    <a href="/historico-pagamentos">💵 Histórico de Pagamentos</a>
+    <div class="section-title">Sistema</div>
+    <a href="/configuracoes">⚙️ Configurações</a>
+  <a href="#" onclick="tryInstallPWA(); return false;">📱 Instalar App</a>
+  <a href="/login" data-action="sairDoSistema" style="color: #ef4444;">🚪 Sair</a>
+  </nav>
+</aside>
+<script{%- if csp_nonce %} nonce="{{ csp_nonce }}"{%- endif %}>
+  (function(){
+    function toggleNav(open){
+      const sb=document.getElementById('appSidebar');
+      const ov=document.getElementById('navOverlay');
+      if(open){ sb.style.transform='translateX(0)'; ov.style.display='block'; ov.setAttribute('aria-hidden','false'); }
+      else { sb.style.transform='translateX(-100%)'; ov.style.display='none'; ov.setAttribute('aria-hidden','true'); }
+    }
+    const openBtn=document.getElementById('btnOpenAppSidebar');
+    const closeBtn=document.getElementById('btnCloseAppSidebar');
+    const overlay=document.getElementById('navOverlay');
+    if(openBtn) openBtn.addEventListener('click', ()=> toggleNav(true));
+    if(closeBtn) closeBtn.addEventListener('click', ()=> toggleNav(false));
+    if(overlay) overlay.addEventListener('click', ()=> toggleNav(false));
+    document.addEventListener('keydown', (e)=>{ if(e.key==='Escape') toggleNav(false); });
+
+    // Active link highlight
+    try{
+      const path = window.location.pathname.replace(/\/$/, '') || '/';
+      const links = document.querySelectorAll('#appSidebar nav a');
+      links.forEach(a=>{
+        const href = (a.getAttribute('href')||'').replace(/\/$/, '') || '/';
+        if(href === '/'){
+          if(path === '/') { a.classList.add('active'); a.setAttribute('aria-current','page'); }
+        } else if (path.startsWith(href)) {
+          a.classList.add('active'); a.setAttribute('aria-current','page');
+        }
+      });
+    }catch(_e){}
+  })();
+</script>
+
+<!-- Sistema de Notificações -->
+<script{%- if csp_nonce %} nonce="{{ csp_nonce }}"{%- endif %}>
+(function() {
+  let notificacoesData = null;
+  let notificationCheckInterval = null;
+
+  // Buscar notificações
+  async function buscarNotificacoes() {
+    try {
+      const response = await fetch(`${API_BASE}/api/notificacoes`);
+      if (!response.ok) throw new Error('Erro ao buscar notificações');
+      
+      notificacoesData = await response.json();
+      atualizarBadge();
+      
+      // Solicitar permissão para notificações do navegador
+      if ('Notification' in window && Notification.permission === 'default') {
+        Notification.requestPermission();
+      }
+      
+      // Enviar notificação do navegador para itens críticos
+      enviarNotificacoesCriticas();
+      
+    } catch (error) {
+      console.error('Erro ao buscar notificações:', error);
+    }
+  }
+
+  // Atualizar badge do botão
+  function atualizarBadge() {
+    const badge = document.getElementById('notificationBadge');
+    if (!notificacoesData || notificacoesData.total === 0) {
+      badge.style.display = 'none';
+      return;
+    }
+    
+    badge.textContent = notificacoesData.total > 99 ? '99+' : notificacoesData.total;
+    badge.style.display = 'flex';
+  }
+
+  // Renderizar lista de notificações
+  function renderizarNotificacoes() {
+    const lista = document.getElementById('notificationList');
+    
+    if (!notificacoesData || notificacoesData.notificacoes.length === 0) {
+      lista.innerHTML = `
+        <div class="notification-empty">
+          <div style="font-size: 48px; margin-bottom: 8px;">✅</div>
+          <div>Nenhuma notificação</div>
+          <div style="font-size: 12px; margin-top: 4px;">Você está em dia!</div>
+        </div>
+      `;
+      return;
+    }
+    
+    lista.innerHTML = notificacoesData.notificacoes.map(n => `
+      <div class="notification-item ${n.tipo}" onclick="irParaParcela(${n.id})">
+        <div class="notification-title">
+          <span>${n.titulo}</span>
+          <span style="font-size: 12px; color: var(--muted);">${formatarDataBR(n.data_vencimento)}</span>
+        </div>
+        <div class="notification-message">
+          ${getIconePrioridade(n.prioridade)} ${n.mensagem}
+        </div>
+        <div class="notification-value">
+          ${n.natureza === 'receita' ? '💰' : '💸'} ${brl(n.valor)}
+        </div>
+      </div>
+    `).join('');
+  }
+
+  // Ícone de prioridade
+  function getIconePrioridade(prioridade) {
+    switch(prioridade) {
+      case 'alta': return '🔴';
+      case 'media': return '🟡';
+      case 'baixa': return '🔵';
+      default: return '⚪';
+    }
+  }
+
+  // Formatar data BR
+  function formatarDataBR(dataISO) {
+    const [ano, mes, dia] = dataISO.split('-');
+    return `${dia}/${mes}/${ano}`;
+  }
+
+  // Ir para a página de parcelas
+  window.irParaParcela = function(parcelaId) {
+    window.location.href = `/parcelas?highlight=${parcelaId}`;
+  };
+
+  // Enviar notificações críticas do navegador
+  function enviarNotificacoesCriticas() {
+    if (!notificacoesData || Notification.permission !== 'granted') return;
+    
+    const criticas = notificacoesData.notificacoes.filter(n => 
+      n.tipo === 'vencida' || n.tipo === 'vence_hoje'
+    );
+    
+    if (criticas.length > 0 && !sessionStorage.getItem('notificacoes_enviadas_hoje')) {
+      const vencidas = criticas.filter(n => n.tipo === 'vencida').length;
+      const hoje = criticas.filter(n => n.tipo === 'vence_hoje').length;
+      
+      let mensagem = '';
+      if (vencidas > 0) mensagem += `${vencidas} parcela(s) vencida(s)`;
+      if (hoje > 0) mensagem += `${vencidas > 0 ? ' e ' : ''}${hoje} vence(m) hoje`;
+      
+      new Notification('⚠️ Atenção - Parcelas Pendentes', {
+        body: mensagem,
+        icon: '/static/favicon.ico',
+        badge: '/static/favicon.ico',
+        tag: 'parcelas-pendentes'
+      });
+      
+      sessionStorage.setItem('notificacoes_enviadas_hoje', 'true');
+    }
+  }
+
+  // Toggle dropdown
+  const btnNotifications = document.getElementById('btnNotifications');
+  const dropdown = document.getElementById('notificationDropdown');
+  const btnClose = document.getElementById('btnCloseNotifications');
+  const navOverlay = document.getElementById('navOverlay');
+  
+  function toggleDropdown(show) {
+    if (show) {
+      renderizarNotificacoes();
+      dropdown.classList.add('show');
+      navOverlay.style.display = 'block';
+    } else {
+      dropdown.classList.remove('show');
+      if (!document.getElementById('appSidebar').style.transform.includes('translateX(0)')) {
+        navOverlay.style.display = 'none';
+      }
+    }
+  }
+  
+  btnNotifications.addEventListener('click', () => {
+    const isOpen = dropdown.classList.contains('show');
+    toggleDropdown(!isOpen);
+  });
+  
+  btnClose.addEventListener('click', () => toggleDropdown(false));
+  
+  navOverlay.addEventListener('click', () => {
+    toggleDropdown(false);
+  });
+
+  // Buscar notificações ao carregar
+  buscarNotificacoes();
+  
+  // Atualizar a cada 5 minutos
+  notificationCheckInterval = setInterval(buscarNotificacoes, 5 * 60 * 1000);
+  
+  // Limpar intervalo ao sair
+  window.addEventListener('beforeunload', () => {
+    if (notificationCheckInterval) clearInterval(notificationCheckInterval);
+  });
+})();
+</script>
+
+<!-- Status da Assinatura (Billing) -->
+<script{%- if csp_nonce %} nonce="{{ csp_nonce }}"{%- endif %}>
+(function(){
+  const el = document.getElementById('billingStatus');
+  if (!el) return;
+
+  async function carregarAssinatura() {
+    try {
+      const resp = await fetch(`${API_BASE}/api/billing/assinatura`);
+      if (!resp.ok) throw new Error('Falha ao obter assinatura');
+      const data = await resp.json();
+      render(data);
+    } catch (e) {
+      // Em caso de erro (ex: usuário não autenticado em alguma rota pública), esconder
+      el.classList.remove('show');
+    }
+  }
+
+  function toBR(iso) {
+    if (!iso) return '';
+    const [y,m,d] = iso.split('-');
+    return `${d}/${m}/${y}`;
+  }
+
+  function diffDias(iso) {
+    if (!iso) return null;
+    const hoje = new Date(); hoje.setHours(0,0,0,0);
+    const [y,m,d] = iso.split('-').map(Number);
+    const dt = new Date(y, m-1, d);
+    const diffMs = dt - hoje;
+    return Math.round(diffMs / (1000*60*60*24));
+  }
+
+  function render(data) {
+    const { status, proximo_vencimento, trial_ate } = data;
+    let html = '';
+    el.className = `billing-status ${status} show`;
+
+    if (status === 'trial') {
+      const dias = diffDias(trial_ate);
+      html = `
+        <div class="title">🎁 Avaliação (TRIAL)</div>
+        <div class="desc">Válida até <strong>${toBR(trial_ate) || '-'}</strong>${Number.isFinite(dias) ? ` (${dias} dia(s) restante(s))` : ''}.</div>
+        <div class="actions">
+          <button class="btn btn-outline" onclick="window.location.href='/configuracoes'">Configurações</button>
+        </div>
+      `;
+    } else if (status === 'ativa') {
+      html = `
+        <div class="title">✅ Assinatura ativa</div>
+        <div class="desc">Próximo vencimento: <strong>${toBR(proximo_vencimento) || '-'}</strong></div>
+        <div class="actions">
+          <button class="btn btn-outline" onclick="window.location.href='/configuracoes'">Gerenciar</button>
+        </div>
+      `;
+    } else if (status === 'inadimplente') {
+      html = `
+        <div class="title">⚠️ Assinatura vencida</div>
+        <div class="desc">Venceu em <strong>${toBR(proximo_vencimento) || '-'}</strong>. Regularize para continuar usando todos os recursos.</div>
+        <div class="actions">
+          <button class="btn btn-primary" id="btnAbrirPagamento">Registrar pagamento</button>
+          <button class="btn btn-outline" onclick="window.location.href='/configuracoes'">Opções</button>
+        </div>
+        <div class="mini-form" id="miniFormPagamento">
+          <input id="inputValorPg" type="number" step="0.01" min="0" placeholder="Valor (R$)" style="width: 110px;" />
+          <select id="inputMetodoPg">
+            <option value="manual">Manual</option>
+            <option value="pix">PIX</option>
+            <option value="boleto">Boleto</option>
+            <option value="cartao">Cartão</option>
+          </select>
+          <button class="btn-confirm" id="btnConfirmarPg">Confirmar</button>
+        </div>
+      `;
+    } else if (status === 'cancelada') {
+      html = `
+        <div class="title">⏹️ Assinatura cancelada</div>
+        <div class="desc">Reative sua assinatura para continuar.</div>
+        <div class="actions">
+          <button class="btn btn-primary" onclick="window.location.href='/configuracoes'">Reativar</button>
+        </div>
+      `;
+    } else {
+      // desconhecido: ocultar
+      el.classList.remove('show');
+      return;
+    }
+
+    el.innerHTML = html;
+
+    // Comportamento do fluxo de pagamento simples
+    const btnAbrir = document.getElementById('btnAbrirPagamento');
+    const miniForm = document.getElementById('miniFormPagamento');
+    const btnConfirmar = document.getElementById('btnConfirmarPg');
+    if (btnAbrir && miniForm) {
+      btnAbrir.addEventListener('click', () => {
+        miniForm.style.display = miniForm.style.display === 'flex' ? 'none' : 'flex';
+      });
+    }
+    if (btnConfirmar) {
+      btnConfirmar.addEventListener('click', async () => {
+        try {
+          const raw = document.getElementById('inputValorPg').value;
+          const valor = window.parseNumber ? window.parseNumber(raw) : Number(raw);
+          const metodo = document.getElementById('inputMetodoPg').value || 'manual';
+          if (!valor || valor <= 0) { throw new Error('Informe um valor válido.'); }
+          const r = await fetch(`${API_BASE}/api/billing/pagamentos`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ valor, metodo })
+          });
+          if (!r.ok) {
+            const j = await r.json().catch(()=>({detail:'Falha ao registrar pagamento'}));
+            throw new Error(typeof j.detail === 'string' ? j.detail : (j.detail?.message || 'Falha ao registrar pagamento'));
+          }
+          if (window.Toast) Toast.success('Pagamento registrado com sucesso!');
+          miniForm.style.display = 'none';
+          await carregarAssinatura();
+        } catch (err) {
+          console.error(err);
+          if (window.Toast) Toast.error(err.message || 'Erro ao registrar pagamento');
+          else alert(err.message || 'Erro ao registrar pagamento');
+        }
+      });
+    }
+  }
+
+  // Inicializar e atualizar periodicamente
+  carregarAssinatura();
+  setInterval(carregarAssinatura, 5 * 60 * 1000);
+})();
+</script>
+
+<!-- Logout do Sistema -->
+<script{%- if csp_nonce %} nonce="{{ csp_nonce }}"{%- endif %}>
+async function sairDoSistema() {
+  if (!confirm('Deseja realmente sair do sistema?')) return;
+  
+  try {
+    const resp = await fetch(`${API_BASE}/auth/logout`, { method: 'POST' });
+    if (resp.ok) {
+      if (window.Toast) Toast.success('Logout realizado com sucesso!');
+      setTimeout(() => window.location.href = '/login', 500);
+    } else {
+      throw new Error('Falha ao fazer logout');
+    }
+  } catch (e) {
+    console.error(e);
+    if (window.Toast) Toast.error('Erro ao fazer logout');
+    // Forçar redirect mesmo se falhar
+    setTimeout(() => window.location.href = '/login', 1000);
+  }
+}
+</script>
+
+<!-- PWA Service Worker Registration -->
+<script{%- if csp_nonce %} nonce="{{ csp_nonce }}"{%- endif %}>
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+  navigator.serviceWorker.register('/static/sw.js?v=20251104c')
+      .then((registration) => {
+        console.log('✅ Service Worker registrado com sucesso:', registration.scope);
+        
+        // Verificar atualizações
+        registration.addEventListener('updatefound', () => {
+          const newWorker = registration.installing;
+          console.log('🔄 Nova versão do Service Worker encontrada');
+          
+          newWorker.addEventListener('statechange', () => {
+            if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+              // Nova versão disponível
+              if (confirm('🔄 Nova versão disponível! Deseja atualizar?')) {
+                newWorker.postMessage({ type: 'SKIP_WAITING' });
+                window.location.reload();
+              }
+            }
+          });
+        });
+      })
+      .catch((error) => {
+        console.error('❌ Erro ao registrar Service Worker:', error);
+      });
+    
+    // Recarregar quando um novo SW assume o controle
+    let refreshing = false;
+    navigator.serviceWorker.addEventListener('controllerchange', () => {
+      if (!refreshing) {
+        refreshing = true;
+        window.location.reload();
+      }
+    });
+  });
+}
+
+// Botão de instalação do PWA
+let deferredPrompt;
+// Disponibiliza o prompt também no escopo global para o item de menu
+window.deferredPrompt = null;
+const installButton = document.createElement('button');
+installButton.id = 'btnInstallPWA';
+installButton.innerHTML = '📱 Instalar App';
+installButton.style.cssText = `
+  position: fixed;
+  bottom: 20px;
+  right: 20px;
+  padding: 12px 20px;
+  background: linear-gradient(135deg, #22d3ee 0%, #06b6d4 100%);
+  color: white;
+  border: none;
+  border-radius: 25px;
+  font-weight: 600;
+  font-size: 14px;
+  cursor: pointer;
+  box-shadow: 0 4px 15px rgba(34, 211, 238, 0.4);
+  z-index: 1000;
+  display: none;
+  transition: transform 0.2s, box-shadow 0.2s;
+`;
+installButton.addEventListener('mouseenter', () => {
+  installButton.style.transform = 'translateY(-2px)';
+  installButton.style.boxShadow = '0 6px 20px rgba(34, 211, 238, 0.5)';
+});
+installButton.addEventListener('mouseleave', () => {
+  installButton.style.transform = 'translateY(0)';
+  installButton.style.boxShadow = '0 4px 15px rgba(34, 211, 238, 0.4)';
+});
+
+// Mostrar botão quando o evento beforeinstallprompt for disparado
+window.addEventListener('beforeinstallprompt', (e) => {
+  e.preventDefault();
+  deferredPrompt = e;
+  window.deferredPrompt = e;
+  document.body.appendChild(installButton);
+  installButton.style.display = 'block';
+  
+  console.log('📱 PWA pronto para instalação');
+});
+
+// Instalar PWA
+async function executarInstalacaoPWA() {
+  if (!deferredPrompt) {
+    // Caso o evento ainda não tenha disparado, orientar o usuário
+    showToast ? showToast('Para instalar, use o ícone de instalação do navegador ou adicione à tela inicial.', 'info') : alert('Para instalar, use o ícone de instalação do navegador ou adicione à tela inicial.');
+    return;
+  }
+
+  deferredPrompt.prompt();
+  const { outcome } = await deferredPrompt.userChoice;
+
+  if (outcome === 'accepted') {
+    console.log('✅ PWA instalado com sucesso');
+    if (typeof showToast === 'function') showToast('App instalado com sucesso! 🎉', 'success');
+  } else {
+    console.log('❌ Instalação do PWA cancelada');
+  }
+
+  deferredPrompt = null;
+  window.deferredPrompt = null;
+  installButton.style.display = 'none';
+}
+
+// Botão flutuante usa a mesma função
+installButton.addEventListener('click', executarInstalacaoPWA);
+
+// Função global para o item de menu
+window.tryInstallPWA = executarInstalacaoPWA;
+
+// Detectar quando o app está instalado
+window.addEventListener('appinstalled', () => {
+  console.log('✅ PWA foi instalado');
+  showToast('App instalado! Acesse pelo menu de apps.', 'success');
+  installButton.style.display = 'none';
+});
+
+// Detectar se está rodando como PWA
+if (window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true) {
+  console.log('📱 Rodando como PWA instalado');
+  document.body.classList.add('pwa-installed');
+}
+</script>
+

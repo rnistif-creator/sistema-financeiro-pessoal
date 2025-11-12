@@ -1,0 +1,752 @@
+<!doctype html>
+<html lang="pt-br">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Metas e Orçamento - Sistema Financeiro</title>
+  <style>
+    :root {
+      --bg: #0f172a;
+      --card: #1e293b;
+      --muted: #94a3b8;
+      --text: #e5e7eb;
+      --primary: #22d3ee;
+      --primary-strong: #06b6d4;
+      --danger: #ef4444;
+      --success: #22c55e;
+      --warning: #f59e0b;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: Inter, system-ui, sans-serif;
+      line-height: 1.6;
+      padding: 24px;
+    }
+    .container { max-width: 1200px; margin: 0 auto; }
+    .header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 32px;
+      flex-wrap: wrap;
+      gap: 16px;
+    }
+    .title { font-size: 28px; font-weight: 700; }
+    .nav-links {
+      display: flex;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+    .nav-btn {
+      padding: 8px 16px;
+      border-radius: 12px;
+      text-decoration: none;
+      color: var(--primary);
+      background: rgba(34,211,238,.07);
+      border: 1px dashed rgba(34,211,238,.25);
+      transition: all .2s ease;
+    }
+    .nav-btn:hover {
+      background: rgba(34,211,238,.12);
+      border-color: rgba(34,211,238,.35);
+    }
+    .section {
+      background: var(--card);
+      padding: 24px;
+      border-radius: 12px;
+      margin-bottom: 24px;
+    }
+    .section-title {
+      font-size: 20px;
+      font-weight: 600;
+      margin-bottom: 16px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .form-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 16px;
+      margin-bottom: 16px;
+    }
+    .form-group {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+    label {
+      font-size: 14px;
+      font-weight: 500;
+      color: var(--muted);
+    }
+    input, select, textarea {
+      padding: 10px 12px;
+      border-radius: 8px;
+      border: 1px solid rgba(148,163,184,0.3);
+      background: var(--bg);
+      color: var(--text);
+      font-size: 14px;
+    }
+    input:focus, select:focus, textarea:focus {
+      outline: none;
+      border-color: var(--primary);
+    }
+    .btn {
+      padding: 10px 16px;
+      border-radius: 8px;
+      border: none;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all .2s;
+      font-size: 14px;
+    }
+    .btn-primary {
+      background: linear-gradient(180deg, var(--primary), var(--primary-strong));
+      color: #00212a;
+    }
+    .btn-primary:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 8px 16px rgba(34,211,238,0.3);
+    }
+    .btn-danger {
+      background: var(--danger);
+      color: white;
+    }
+    .btn-outline {
+      background: transparent;
+      color: var(--text);
+      border: 1px solid rgba(148,163,184,.35);
+    }
+    .btn:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+    .actions {
+      display: flex;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 16px;
+      margin-bottom: 20px;
+    }
+    .stat-card {
+      background: var(--bg);
+      padding: 20px;
+      border-radius: 8px;
+      border-left: 3px solid var(--primary);
+    }
+    .stat-label {
+      font-size: 12px;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    .stat-value {
+      font-size: 28px;
+      font-weight: 700;
+      margin-top: 4px;
+    }
+    .stat-card.success { border-color: var(--success); }
+    .stat-card.success .stat-value { color: var(--success); }
+    .stat-card.warning { border-color: var(--warning); }
+    .stat-card.warning .stat-value { color: var(--warning); }
+    .stat-card.danger { border-color: var(--danger); }
+    .stat-card.danger .stat-value { color: var(--danger); }
+    .meta-card {
+      background: var(--bg);
+      padding: 20px;
+      border-radius: 12px;
+      margin-bottom: 16px;
+      border-left: 4px solid var(--primary);
+    }
+    .meta-card.dentro { border-color: var(--success); }
+    .meta-card.atencao { border-color: var(--warning); }
+    .meta-card.excedido { border-color: var(--danger); }
+    .meta-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 12px;
+    }
+    .meta-title {
+      font-size: 18px;
+      font-weight: 600;
+    }
+    .meta-badge {
+      padding: 4px 12px;
+      border-radius: 6px;
+      font-size: 12px;
+      font-weight: 600;
+    }
+    .badge-dentro { background: rgba(34,197,94,0.2); color: var(--success); }
+    .badge-atencao { background: rgba(245,158,11,0.2); color: var(--warning); }
+    .badge-excedido { background: rgba(239,68,68,0.2); color: var(--danger); }
+    .progress-bar {
+      width: 100%;
+      height: 24px;
+      background: rgba(15,23,42,0.5);
+      border-radius: 12px;
+      overflow: hidden;
+      margin: 12px 0;
+    }
+    .progress-fill {
+      height: 100%;
+      background: linear-gradient(90deg, var(--success), #16a34a);
+      transition: width 0.3s ease;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 12px;
+      font-weight: 600;
+    }
+    .progress-fill.atencao {
+      background: linear-gradient(90deg, var(--warning), #d97706);
+    }
+    .progress-fill.excedido {
+      background: linear-gradient(90deg, var(--danger), #dc2626);
+    }
+    .meta-values {
+      display: flex;
+      justify-content: space-between;
+      font-size: 14px;
+      margin-top: 8px;
+    }
+    .meta-actions {
+      margin-top: 12px;
+      display: flex;
+      gap: 8px;
+    }
+    .alert {
+      padding: 16px;
+      border-radius: 8px;
+      margin-bottom: 16px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    .alert-info { background: rgba(34,211,238,0.1); border-left: 3px solid var(--primary); }
+    .alert-success { background: rgba(34,197,94,0.1); border-left: 3px solid var(--success); }
+    .empty-state {
+      text-align: center;
+      padding: 60px 20px;
+      color: var(--muted);
+    }
+    .loading {
+      text-align: center;
+      padding: 40px;
+      color: var(--muted);
+    }
+    .periodo-atual {
+      display: flex;
+      gap: 12px;
+      align-items: center;
+      margin-bottom: 20px;
+      flex-wrap: wrap;
+    }
+    .periodo-atual select {
+      flex: 1;
+      min-width: 120px;
+    }
+  </style>
+</head>
+<body>
+  {% include '_app_sidebar.html' %}
+  <div class="container" id="main-content" tabindex="-1">
+    <div class="header">
+      <h1 class="title">🎯 Metas e Orçamento</h1>
+      <div class="nav-links"></div>
+    </div>
+
+    <!-- Seletor de Período -->
+    <div class="section">
+      <div class="periodo-atual">
+        <label>Visualizar:</label>
+        <select id="anoSelecionado" onchange="carregarProgresso()">
+          <!-- Preenchido via JS -->
+        </select>
+        <select id="mesSelecionado" onchange="carregarProgresso()">
+          <option value="1">Janeiro</option>
+          <option value="2">Fevereiro</option>
+          <option value="3">Março</option>
+          <option value="4">Abril</option>
+          <option value="5">Maio</option>
+          <option value="6">Junho</option>
+          <option value="7">Julho</option>
+          <option value="8">Agosto</option>
+          <option value="9">Setembro</option>
+          <option value="10">Outubro</option>
+          <option value="11">Novembro</option>
+          <option value="12">Dezembro</option>
+        </select>
+      </div>
+
+      <!-- Resumo do Período -->
+      <div id="progressoLoading" class="loading" style="display:none;">Carregando progresso...</div>
+      <div id="progressoContainer"></div>
+    </div>
+
+    <!-- Formulário de Nova Meta -->
+    <div class="section">
+      <h2 class="section-title">➕ Nova Meta</h2>
+      
+      <div class="alert alert-info">
+        <span>💡</span>
+        <div>
+          <strong>Dica:</strong> Defina metas mensais por categoria para controlar seus gastos. 
+          Deixe o tipo em branco para criar uma meta geral do mês.
+        </div>
+      </div>
+
+      <form id="formMeta" onsubmit="salvarMeta(event)">
+        <div class="form-grid">
+          <div class="form-group">
+            <label>Ano *</label>
+            <input type="number" id="ano" required min="2020" max="2100">
+          </div>
+          
+          <div class="form-group">
+            <label>Mês *</label>
+            <select id="mes" required>
+              <option value="1">Janeiro</option>
+              <option value="2">Fevereiro</option>
+              <option value="3">Março</option>
+              <option value="4">Abril</option>
+              <option value="5">Maio</option>
+              <option value="6">Junho</option>
+              <option value="7">Julho</option>
+              <option value="8">Agosto</option>
+              <option value="9">Setembro</option>
+              <option value="10">Outubro</option>
+              <option value="11">Novembro</option>
+              <option value="12">Dezembro</option>
+            </select>
+          </div>
+
+          <div class="form-group">
+            <label>Tipo de Lançamento</label>
+            <select id="tipoLancamentoId">
+              <option value="">Geral (todos os tipos)</option>
+              <!-- Preenchido via JS -->
+            </select>
+          </div>
+
+          <div class="form-group">
+            <label>Valor Planejado *</label>
+            <input type="number" id="valorPlanejado" required min="0.01" step="0.01" placeholder="0.00">
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label>Descrição</label>
+          <textarea id="descricao" rows="2" placeholder="Ex: Limite de gastos com alimentação"></textarea>
+        </div>
+
+        <div class="actions" style="margin-top:16px;">
+          <button type="submit" class="btn btn-primary">💾 Salvar Meta</button>
+          <button type="button" class="btn btn-outline" onclick="limparFormulario()">🔄 Limpar</button>
+        </div>
+      </form>
+    </div>
+
+    <!-- Lista de Metas -->
+    <div class="section">
+      <h2 class="section-title">📋 Metas Cadastradas</h2>
+      
+      <div class="actions">
+        <button class="btn btn-outline" onclick="carregarMetas()">🔄 Atualizar</button>
+      </div>
+
+      <div id="metasLoading" class="loading">Carregando metas...</div>
+      <div id="metasContainer"></div>
+    </div>
+  </div>
+
+  <script{%- if csp_nonce %} nonce="{{ csp_nonce }}"{%- endif %}>
+    // API_BASE, brl now come from config.js
+    const meses = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
+    
+    let metaEditandoId = null;
+
+    // ========== INICIALIZAÇÃO ==========
+
+    function inicializar() {
+      // Preencher ano atual
+      const anoAtual = new Date().getFullYear();
+      const mesAtual = new Date().getMonth() + 1;
+      
+      document.getElementById('ano').value = anoAtual;
+      document.getElementById('mes').value = mesAtual;
+      
+      // Preencher seletores de período
+      const selectAno = document.getElementById('anoSelecionado');
+      for (let ano = anoAtual + 1; ano >= 2020; ano--) {
+        const option = document.createElement('option');
+        option.value = ano;
+        option.textContent = ano;
+        if (ano === anoAtual) option.selected = true;
+        selectAno.appendChild(option);
+      }
+      
+      document.getElementById('mesSelecionado').value = mesAtual;
+      
+      carregarTipos();
+      carregarMetas();
+      carregarProgresso();
+    }
+
+    async function carregarTipos() {
+      try {
+        const res = await fetch(`${API_BASE}/api/tipos`);
+        if (!res.ok) throw new Error('Erro ao carregar tipos');
+        
+        const tipos = await res.json();
+        const select = document.getElementById('tipoLancamentoId');
+        
+        // Limpar opções (exceto a primeira)
+        while (select.options.length > 1) {
+          select.remove(1);
+        }
+        
+        // Agrupar por natureza
+        const receitas = tipos.filter(t => t.natureza === 'receita');
+        const despesas = tipos.filter(t => t.natureza === 'despesa');
+        
+        if (despesas.length > 0) {
+          const optgroupDespesas = document.createElement('optgroup');
+          optgroupDespesas.label = '📉 Despesas';
+          despesas.forEach(tipo => {
+            const option = document.createElement('option');
+            option.value = tipo.id;
+            option.textContent = tipo.nome;
+            optgroupDespesas.appendChild(option);
+          });
+          select.appendChild(optgroupDespesas);
+        }
+        
+        if (receitas.length > 0) {
+          const optgroupReceitas = document.createElement('optgroup');
+          optgroupReceitas.label = '📈 Receitas';
+          receitas.forEach(tipo => {
+            const option = document.createElement('option');
+            option.value = tipo.id;
+            option.textContent = tipo.nome;
+            optgroupReceitas.appendChild(option);
+          });
+          select.appendChild(optgroupReceitas);
+        }
+        
+      } catch (error) {
+        console.error('Erro ao carregar tipos:', error);
+      }
+    }
+
+    // ========== METAS ==========
+
+    async function salvarMeta(event) {
+      event.preventDefault();
+      
+      const dados = {
+        ano: parseInt(document.getElementById('ano').value),
+        mes: parseInt(document.getElementById('mes').value),
+        tipo_lancamento_id: document.getElementById('tipoLancamentoId').value || null,
+        valor_planejado: parseFloat(document.getElementById('valorPlanejado').value),
+        descricao: document.getElementById('descricao').value || null
+      };
+
+      try {
+        const url = metaEditandoId 
+          ? `${API_BASE}/api/metas/${metaEditandoId}`
+          : `${API_BASE}/api/metas`;
+        
+        const method = metaEditandoId ? 'PUT' : 'POST';
+        await fetchWithLoading(url, {
+          method: method,
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(dados)
+        }, 'Salvando meta...');
+        
+        Toast.show(`Meta ${metaEditandoId ? 'atualizada' : 'criada'} com sucesso!`, 'success');
+        limparFormulario();
+        carregarMetas();
+        carregarProgresso();
+        
+      } catch (error) {
+        console.error('Erro ao salvar meta:', error);
+        Toast.show(error.message || 'Erro ao salvar meta', 'error');
+      }
+    }
+
+    async function carregarMetas() {
+      const loading = document.getElementById('metasLoading');
+      const container = document.getElementById('metasContainer');
+      
+      loading.style.display = 'block';
+      container.innerHTML = '';
+
+      try {
+        const metas = await fetchWithLoading(`${API_BASE}/api/metas`, {}, 'Carregando metas...');
+
+        if (metas.length === 0) {
+          container.innerHTML = '<div class="empty-state">Nenhuma meta cadastrada. Crie sua primeira meta!</div>';
+          return;
+        }
+
+        // Agrupar por ano/mês
+        const grupos = {};
+        metas.forEach(meta => {
+          const chave = `${meta.ano}-${meta.mes}`;
+          if (!grupos[chave]) {
+            grupos[chave] = {
+              ano: meta.ano,
+              mes: meta.mes,
+              metas: []
+            };
+          }
+          grupos[chave].metas.push(meta);
+        });
+
+        // Renderizar grupos
+        let html = '';
+        Object.values(grupos).forEach(grupo => {
+          html += `
+            <div style="margin-bottom:32px;">
+              <h3 style="font-size:18px; margin-bottom:16px; color:var(--primary);">
+                📅 ${meses[grupo.mes - 1]}/${grupo.ano}
+              </h3>
+              ${grupo.metas.map(meta => renderMetaCard(meta)).join('')}
+            </div>
+          `;
+        });
+
+        container.innerHTML = html;
+
+      } catch (error) {
+        console.error('Erro ao carregar metas:', error);
+        container.innerHTML = '<div class="empty-state">Erro ao carregar metas</div>';
+        Toast.show('Erro ao carregar metas', 'error');
+      } finally {
+        loading.style.display = 'none';
+      }
+    }
+
+    function renderMetaCard(meta) {
+      const percentual = meta.percentual_realizado || 0;
+      const statusClass = meta.status || 'dentro';
+      const statusLabel = statusClass === 'dentro' ? 'Dentro do Orçamento' 
+                        : statusClass === 'atencao' ? 'Atenção' 
+                        : 'Excedido';
+      
+      return `
+        <div class="meta-card ${statusClass}">
+          <div class="meta-header">
+            <div class="meta-title">
+              ${meta.tipo_nome || 'Geral'}
+              ${meta.tipo_natureza === 'despesa' ? '📉' : meta.tipo_natureza === 'receita' ? '📈' : '💰'}
+            </div>
+            <span class="meta-badge badge-${statusClass}">${statusLabel}</span>
+          </div>
+          
+          ${meta.descricao ? `<p style="color:var(--muted); font-size:14px; margin-bottom:8px;">${meta.descricao}</p>` : ''}
+          
+          <div class="progress-bar">
+            <div class="progress-fill ${statusClass}" style="width:${Math.min(percentual, 100)}%;">
+              ${percentual.toFixed(1)}%
+            </div>
+          </div>
+          
+          <div class="meta-values">
+            <div>
+              <span style="color:var(--muted);">Realizado:</span>
+              <strong>${brl.format(meta.valor_realizado || 0)}</strong>
+            </div>
+            <div>
+              <span style="color:var(--muted);">Planejado:</span>
+              <strong>${brl.format(meta.valor_planejado)}</strong>
+            </div>
+            <div>
+              <span style="color:var(--muted);">Diferença:</span>
+              <strong style="color:${(meta.valor_realizado || 0) <= meta.valor_planejado ? 'var(--success)' : 'var(--danger)'}">
+                ${brl.format((meta.valor_planejado - (meta.valor_realizado || 0)))}
+              </strong>
+            </div>
+          </div>
+          
+          <div class="meta-actions">
+            <button class="btn btn-outline" onclick="editarMeta(${meta.id})" style="padding:6px 12px; font-size:12px;">
+              ✏️ Editar
+            </button>
+            <button class="btn btn-danger" onclick="deletarMeta(${meta.id})" style="padding:6px 12px; font-size:12px;">
+              🗑️ Deletar
+            </button>
+          </div>
+        </div>
+      `;
+    }
+
+    async function editarMeta(id) {
+      try {
+        const res = await fetch(`${API_BASE}/api/metas/${id}`);
+        if (!res.ok) throw new Error('Erro ao carregar meta');
+        
+        const meta = await res.json();
+        
+        document.getElementById('ano').value = meta.ano;
+        document.getElementById('mes').value = meta.mes;
+        document.getElementById('tipoLancamentoId').value = meta.tipo_lancamento_id || '';
+        document.getElementById('valorPlanejado').value = meta.valor_planejado;
+        document.getElementById('descricao').value = meta.descricao || '';
+        
+        metaEditandoId = id;
+        
+        // Scroll para o formulário
+        document.getElementById('formMeta').scrollIntoView({ behavior: 'smooth', block: 'start' });
+        
+      } catch (error) {
+        console.error('Erro ao editar meta:', error);
+        Toast.show('Erro ao carregar meta para edição', 'error');
+      }
+    }
+
+    async function deletarMeta(id) {
+      ConfirmDialog.show({
+        title: 'Confirmar exclusão',
+        message: 'Deseja realmente deletar esta meta?',
+        confirmText: 'Deletar',
+        cancelText: 'Cancelar',
+        variant: 'danger',
+        onConfirm: async () => {
+          try {
+            await fetchWithLoading(`${API_BASE}/api/metas/${id}`, { method: 'DELETE' }, 'Deletando...');
+            Toast.show('Meta deletada com sucesso!', 'success');
+            carregarMetas();
+            carregarProgresso();
+            
+          } catch (error) {
+            console.error('Erro ao deletar meta:', error);
+            Toast.show('Erro ao deletar meta', 'error');
+          }
+        }
+      });
+    }
+
+    function limparFormulario() {
+      document.getElementById('formMeta').reset();
+      const anoAtual = new Date().getFullYear();
+      const mesAtual = new Date().getMonth() + 1;
+      document.getElementById('ano').value = anoAtual;
+      document.getElementById('mes').value = mesAtual;
+      metaEditandoId = null;
+    }
+
+    // ========== PROGRESSO ==========
+
+    async function carregarProgresso() {
+      const loading = document.getElementById('progressoLoading');
+      const container = document.getElementById('progressoContainer');
+      
+      const ano = parseInt(document.getElementById('anoSelecionado').value);
+      const mes = parseInt(document.getElementById('mesSelecionado').value);
+      
+      loading.style.display = 'block';
+      container.innerHTML = '';
+
+      try {
+        const dados = await fetchWithLoading(`${API_BASE}/api/metas/progresso/${ano}/${mes}`, {}, 'Carregando progresso...');
+
+        if (!dados.tem_metas) {
+          container.innerHTML = `
+            <div class="alert alert-info">
+              <span>ℹ️</span>
+              <div>
+                <strong>Sem metas definidas</strong><br>
+                Não há metas cadastradas para ${meses[mes - 1]}/${ano}. Crie uma meta para começar!
+              </div>
+            </div>
+          `;
+          return;
+        }
+
+        // Resumo geral
+        const statusGeral = dados.status_geral || 'dentro';
+        let html = `
+          <div class="stats-grid">
+            <div class="stat-card ${statusGeral}">
+              <div class="stat-label">Planejado Total</div>
+              <div class="stat-value">${brl.format(dados.total_planejado)}</div>
+            </div>
+            <div class="stat-card ${statusGeral}">
+              <div class="stat-label">Realizado Total</div>
+              <div class="stat-value">${brl.format(dados.total_realizado)}</div>
+            </div>
+            <div class="stat-card ${statusGeral}">
+              <div class="stat-label">Percentual Geral</div>
+              <div class="stat-value">${dados.percentual_geral.toFixed(1)}%</div>
+            </div>
+            <div class="stat-card ${statusGeral}">
+              <div class="stat-label">Situação</div>
+              <div class="stat-value" style="font-size:20px;">
+                ${statusGeral === 'dentro' ? '✅ No Limite' : statusGeral === 'atencao' ? '⚠️ Atenção' : '❌ Excedido'}
+              </div>
+            </div>
+          </div>
+        `;
+
+        // Metas individuais
+        html += '<h3 style="margin-top:24px; margin-bottom:12px; font-size:16px; color:var(--muted);">Detalhamento por Meta</h3>';
+        dados.metas.forEach(meta => {
+          html += renderMetaCard({
+            ...meta,
+            mes: mes,
+            ano: ano,
+            valor_planejado: meta.valor_planejado,
+            valor_realizado: meta.valor_realizado,
+            percentual_realizado: meta.percentual
+          });
+        });
+
+        container.innerHTML = html;
+
+      } catch (error) {
+        console.error('Erro ao carregar progresso:', error);
+        container.innerHTML = '<div class="empty-state">Erro ao carregar progresso</div>';
+        Toast.show('Erro ao carregar progresso', 'error');
+      } finally {
+        loading.style.display = 'none';
+      }
+    }
+
+    // Inicializar ao carregar
+    inicializar();
+
+    // ========== ACESSIBILIDADE E ATALHOS ==========
+    document.addEventListener('keydown', (e) => {
+      if (e.ctrlKey && !e.shiftKey && !e.altKey) {
+        switch (e.key.toLowerCase()) {
+          case 'n':
+            e.preventDefault();
+            limparFormulario();
+            document.getElementById('valorPlanejado').focus();
+            Toast.show('Formulário de nova meta pronto', 'info');
+            break;
+          case 's':
+            e.preventDefault();
+            const form = document.getElementById('formMeta');
+            if (form) form.requestSubmit();
+            break;
+          case 'r':
+            e.preventDefault();
+            carregarMetas();
+            carregarProgresso();
+            break;
+        }
+      }
+    });
+  </script>
+</body>
+</html>

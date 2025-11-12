@@ -1,0 +1,24 @@
+services:
+  - type: web
+    name: sistema-financeiro-pessoal
+    runtime: python
+    region: oregon
+    plan: free
+    branch: main
+    buildCommand: "pip install -r requirements.txt"
+    startCommand: "uvicorn app.main:app --host 0.0.0.0 --port $PORT"
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.11.0
+      - key: SECRET_KEY
+        generateValue: true
+      - key: ENVIRONMENT
+        value: production
+      - key: DB_PATH
+        value: /opt/render/project/src/data/lancamentos.db
+      - key: LOG_LEVEL
+        value: info
+    disk:
+      name: data
+      mountPath: /opt/render/project/src/data
+      sizeGB: 1

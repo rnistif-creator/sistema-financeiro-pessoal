@@ -1,0 +1,943 @@
+<!doctype html>
+<html lang="pt-br">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Lançamentos Financeiros - MVP</title>
+    <style>
+      /* Estilos específicos desta página (base está no components.css) */
+      .navbar{ display:flex; justify-content:space-between; align-items:center; margin-bottom:24px; }
+    </style>
+  </head>
+  <body>
+    {% include '_app_sidebar.html' %}
+    <div class="container" id="main-content">
+      <div class="navbar">
+        <div>
+          <h1 class="title">💼 Lançamentos Financeiros</h1>
+          <p class="subtitle">Preencha os campos abaixo e clique em <strong>Lançar</strong>.</p>
+        </div>
+        <div style="display:flex; gap:12px">
+          <button type="button" onclick="exportarLancamentosExcel()" style="padding:10px 20px; background:linear-gradient(135deg, #10b981, #059669); color:white; border:none; border-radius:10px; font-weight:700; cursor:pointer; display:flex; align-items:center; gap:8px; transition:all .2s; box-shadow:0 4px 12px rgba(16,185,129,0.3);" onmouseover="this.style.transform='translateY(-2px)'; this.style.boxShadow='0 6px 16px rgba(16,185,129,0.4)'" onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='0 4px 12px rgba(16,185,129,0.3)'">
+            📊 Exportar Excel
+          </button>
+        </div>
+      </div>
+
+      <div class="card">
+        <form id="formLancamento" class="grid" autocomplete="off" aria-label="Formulário de lançamento financeiro">
+          <div class="input-row">
+            <div>
+              <label for="dataLancamento">Data de lançamento</label>
+              <input type="date" id="dataLancamento" name="dataLancamento" required>
+            </div>
+
+            <div>
+              <label for="dataPrimeiroVencimento">Data do primeiro vencimento</label>
+              <input type="date" id="dataPrimeiroVencimento" name="dataPrimeiroVencimento" required>
+            </div>
+          </div>
+
+          <div class="input-row">
+            <div>
+              <label for="tipo">Natureza</label>
+              <select id="tipo" name="tipo" required onchange="atualizarTiposLancamento()">
+                <option value="" disabled selected>Selecione</option>
+                <option value="despesa">Despesa</option>
+                <option value="receita">Receita</option>
+              </select>
+            </div>
+
+            <div>
+              <label for="tipoLancamento">Tipo de Lançamento</label>
+              <select id="tipoLancamento" name="tipoLancamento" required disabled>
+                <option value="" disabled selected>Selecione primeiro a natureza</option>
+              </select>
+            </div>
+            <div>
+              <label for="subtipoLancamento">Subtipo</label>
+              <select id="subtipoLancamento" name="subtipoLancamento" disabled>
+                <option value="" disabled selected>Selecione primeiro o tipo</option>
+              </select>
+            </div>
+          </div>
+
+          <div>
+            <label for="fornecedor">Fornecedor ou Despesa</label>
+            <input type="text" id="fornecedor" name="fornecedor" placeholder="Ex.: ACME Materiais, Energia, IPTU..." required>
+            <div class="input-description">Nome da empresa, pessoa ou descrição do lançamento</div>
+          </div>
+
+          <div class="input-row">
+            <div>
+              <label for="valorTotal">Valor total</label>
+              <input type="number" step="0.01" min="0" inputmode="decimal" id="valorTotal" name="valorTotal" placeholder="0,00" required>
+              <div class="input-description">Digite o valor usando vírgula (ex.: 1234,56)</div>
+            </div>
+
+            <div>
+              <label for="numeroParcelas">Número de parcelas</label>
+              <div class="inline">
+                <input type="number" min="1" step="1" id="numeroParcelas" name="numeroParcelas" placeholder="1" required>
+                <div class="readonly-chip" aria-live="polite">
+                  <span class="sr-only">Valor médio das parcelas:</span>
+                  <span id="valorMedio">R$ 0,00</span>
+                </div>
+              </div>
+              <div class="input-description">Valor médio = Valor total ÷ Nº de parcelas</div>
+            </div>
+          </div>
+
+          <div>
+            <label for="observacao">Observações</label>
+            <textarea id="observacao" name="observacao" placeholder="Digite aqui qualquer observação adicional sobre o lançamento..."></textarea>
+          </div>
+
+          <div class="col-12 buttons">
+            <button type="button" id="btnCancelar" class="btn btn-outline" style="display:none">Cancelar Edição</button>
+            <button type="button" id="btnZerar" class="btn btn-outline">Zerar</button>
+            <a href="/recorrentes" class="btn btn-outline" style="text-decoration: none; display: inline-flex; align-items: center; justify-content: center;">🔁 Recorrentes</a>
+            <button type="submit" class="btn btn-primary">Lançar</button>
+          </div>
+        </form>
+
+        <div id="toast" class="toast" role="status" aria-live="polite"></div>
+      </div>
+    </div>
+
+    <script{%- if csp_nonce %} nonce="{{ csp_nonce }}"{%- endif %}>
+      const $ = (sel) => document.querySelector(sel);
+      const form = $("#formLancamento");
+      const valorTotalEl = $("#valorTotal");
+      const parcelasEl = $("#numeroParcelas");
+      const valorMedioEl = $("#valorMedio");
+      const toast = $("#toast");
+      const dataLancEl = $("#dataLancamento");
+      const dataPrimVencEl = $("#dataPrimeiroVencimento");
+      const btnZerar = $("#btnZerar");
+      const btnCancelar = $("#btnCancelar");
+      const btnSubmit = form.querySelector('button[type="submit"]');
+  const tipoLancSelect = document.getElementById('tipoLancamento');
+  const subtipoLancSelect = document.getElementById('subtipoLancamento');
+
+      // Define datas padrão = hoje (fuso do navegador)
+      function todayISO(){
+        const d = new Date();
+        d.setMinutes(d.getMinutes() - d.getTimezoneOffset()); // normaliza p/ input[type=date]
+        return d.toISOString().split('T')[0];
+      }
+      dataLancEl.value = todayISO();
+      dataPrimVencEl.value = todayISO();
+
+      // Formatador BRL
+      const brl = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' });
+
+      // Formatador de data (AAAA-MM-DD -> DD/MM/AAAA)
+      // Funções utilitárias
+      function parseNumber(v){
+        if (typeof v === 'number') return v;
+        if (!v) return 0;
+        // Aceita tanto vírgula quanto ponto como separador decimal
+        const n = Number(String(v).replace(',', '.'));
+        return isNaN(n) ? 0 : n;
+      }
+
+      function formatNumber(value) {
+        // Formata número para usar vírgula como separador decimal
+        return String(value).replace('.', ',');
+      }
+
+      function updateValorMedio(){
+        const total = parseNumber(valorTotalEl.value);
+        const n = parseInt(parcelasEl.value, 10);
+        const medio = (!n || n <= 0) ? 0 : total / n;
+        valorMedioEl.textContent = brl.format(medio || 0).replace('.', ',');
+      }
+
+      valorTotalEl.addEventListener('input', updateValorMedio);
+      parcelasEl.addEventListener('input', updateValorMedio);
+
+      btnZerar.addEventListener('click', () => {
+        form.reset();
+        dataLancEl.value = todayISO();
+        dataPrimVencEl.value = todayISO();
+        valorMedioEl.textContent = brl.format(0);
+        atualizarTiposLancamento();
+        resetSubtipoSelect();
+        showToast("Formulário zerado.", "info");
+      });
+
+      btnCancelar.addEventListener('click', () => {
+        editandoId = null;
+        btnSubmit.textContent = 'Lançar';
+        btnCancelar.style.display = 'none';
+        form.reset();
+        dataLancEl.value = todayISO();
+        dataPrimVencEl.value = todayISO();
+        valorMedioEl.textContent = brl.format(0);
+        atualizarTiposLancamento();
+        resetSubtipoSelect();
+        showToast("Edição cancelada.", "info");
+      });
+
+      // Usar o novo componente Toast
+      function showToast(msg, type="success"){
+        Toast.show(msg, type);
+      }
+    
+      // Cache dos tipos de lançamento e subtipos
+      let tiposLancamento = [];
+      const subtiposCache = {}; // { [tipoLancamentoId]: Subtipo[] }
+
+      // API_BASE agora vem de config.js global
+
+      // Carregar tipos de lançamento
+      async function carregarTiposLancamento() {
+        try {
+          const res = await fetch(`${API_BASE}/api/tipos`);
+          if (!res.ok) throw new Error('Falha ao carregar tipos');
+          tiposLancamento = await res.json();
+          atualizarTiposLancamento();
+        } catch (err) {
+          showToast('Erro ao carregar tipos de lançamento: ' + err.message, 'error');
+        }
+      }
+
+      function atualizarTiposLancamento() {
+        const natureza = $("#tipo").value;
+        const select = $("#tipoLancamento");
+        // ao trocar natureza, resetar subtipo
+        resetSubtipoSelect();
+        
+        if (!natureza) {
+          select.innerHTML = '<option value="" disabled selected>Selecione primeiro a natureza</option>';
+          select.disabled = true;
+          return;
+        }
+
+        const tipos = tiposLancamento.filter(t => t.natureza === natureza);
+        select.innerHTML = `
+          <option value="" disabled selected>Selecione o tipo</option>
+          ${tipos.map(t => `<option value="${t.id}">${t.nome}</option>`).join('')}
+        `;
+        select.disabled = false;
+      }
+
+      function resetSubtipoSelect(){
+        subtipoLancSelect.innerHTML = '<option value="" disabled selected>Selecione primeiro o tipo</option>';
+        subtipoLancSelect.disabled = true;
+      }
+
+      async function carregarSubtipos(tipoLancamentoId){
+        if (!tipoLancamentoId){ resetSubtipoSelect(); return; }
+        if (subtiposCache[tipoLancamentoId]){
+          preencherSubtipos(subtiposCache[tipoLancamentoId]);
+          return;
+        }
+        try{
+          const res = await fetch(`${API_BASE}/api/tipos/${tipoLancamentoId}/subtipos`);
+          if (!res.ok) throw new Error('Falha ao carregar subtipos');
+          const data = await res.json();
+          const ativos = Array.isArray(data) ? data.filter(s => s.ativo) : [];
+          subtiposCache[tipoLancamentoId] = ativos;
+          preencherSubtipos(ativos);
+        }catch(err){
+          console.error(err);
+          resetSubtipoSelect();
+          Toast.error('Erro ao carregar subtipos');
+        }
+      }
+
+      function preencherSubtipos(lista){
+        if (!lista || lista.length === 0){
+          subtipoLancSelect.innerHTML = '<option value="" disabled selected>Nenhum subtipo disponível</option>';
+          subtipoLancSelect.disabled = true;
+          return;
+        }
+        subtipoLancSelect.innerHTML = `
+          <option value="">(Opcional) Selecione um subtipo</option>
+          ${lista.map(s => `<option value="${s.id}">${s.nome}</option>`).join('')}
+        `;
+        subtipoLancSelect.disabled = false;
+      }
+
+      // Quando mudar o tipo, carregar subtipos
+      tipoLancSelect.addEventListener('change', (e)=>{
+        const id = e.target.value ? parseInt(e.target.value, 10) : null;
+        carregarSubtipos(id);
+      });
+
+      // Carregar subtipos de todos os tipos ao iniciar (para exibição na tabela)
+      async function precarregarSubtipos() {
+        for (const tipo of tiposLancamento) {
+          if (!subtiposCache[tipo.id]) {
+            try {
+              const res = await fetch(`${API_BASE}/api/tipos/${tipo.id}/subtipos`);
+              if (res.ok) {
+                const data = await res.json();
+                subtiposCache[tipo.id] = Array.isArray(data) ? data : [];
+              }
+            } catch (err) {
+              console.warn(`Erro ao carregar subtipos do tipo ${tipo.id}:`, err);
+            }
+          }
+        }
+      }
+
+      // Carregar tipos e subtipos ao iniciar
+      carregarTiposLancamento().then(() => {
+        precarregarSubtipos();
+      });
+
+      // ========== EXPORTAÇÃO EXCEL ==========
+      async function exportarLancamentosExcel() {
+        try {
+          LoadingOverlay.show('Gerando Excel...');
+          
+          // Construir URL com parâmetros (sem filtros por enquanto, exporta tudo)
+          const url = `${API_BASE}/api/relatorios/lancamentos-excel`;
+          
+          const res = await fetch(url);
+          if (!res.ok) {
+            const error = await res.json();
+            throw new Error(error.detail || 'Erro ao gerar Excel');
+          }
+          
+          const blob = await res.blob();
+          const downloadUrl = window.URL.createObjectURL(blob);
+          const a = document.createElement('a');
+          a.href = downloadUrl;
+          a.download = `lancamentos_${new Date().getTime()}.xlsx`;
+          document.body.appendChild(a);
+          a.click();
+          window.URL.revokeObjectURL(downloadUrl);
+          document.body.removeChild(a);
+          
+          LoadingOverlay.hide();
+          Toast.success('✅ Excel gerado com sucesso!');
+        } catch (error) {
+          console.error(error);
+          LoadingOverlay.hide();
+          Toast.error('❌ ' + error.message);
+        }
+      }
+
+      async function saveLancamento(payload){
+        // Usa helper com overlay e timeout para evitar travar silenciosamente
+        return await fetchWithLoading(`${API_BASE}/api/lancamentos`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload),
+          timeout: 20000
+        }, 'Salvando lançamento...');
+      }
+
+      async function listLancamentos(filtros = {}){
+        const params = new URLSearchParams();
+        if (filtros.tipo) params.append('tipo', filtros.tipo);
+        if (filtros.tipo_lancamento_id) params.append('tipo_lancamento_id', filtros.tipo_lancamento_id);
+        if (filtros.subtipo_lancamento_id) params.append('subtipo_lancamento_id', filtros.subtipo_lancamento_id);
+        if (filtros.fornecedor) params.append('fornecedor', filtros.fornecedor);
+        if (filtros.data_inicio) params.append('data_inicio', filtros.data_inicio);
+        if (filtros.data_fim) params.append('data_fim', filtros.data_fim);
+        
+        const url = `${API_BASE}/api/lancamentos${params.toString() ? '?' + params.toString() : ''}`;
+        const res = await fetch(url, {
+          credentials: 'include'
+        });
+        if(!res.ok) return [];
+        return res.json();
+      }
+
+      function toggleFiltros() {
+        const filtros = $("#filtros");
+        filtros.style.display = filtros.style.display === 'none' ? 'block' : 'none';
+      }
+
+      async function aplicarFiltros() {
+        const filtros = {
+          tipo: $("#filtroNatureza").value,
+          tipo_lancamento_id: $("#filtroTipoLancamento").value,
+          subtipo_lancamento_id: $("#filtroSubtipo").value,
+          fornecedor: $("#filtroFornecedor").value.trim(),
+          data_inicio: $("#filtroDataInicio").value,
+          data_fim: $("#filtroDataFim").value
+        };
+        
+        const data = await listLancamentos(filtros).catch(() => []);
+        document.getElementById('lista').innerHTML = tabela(data);
+        
+        showToast('Filtros aplicados!', 'info');
+      }
+
+      function limparFiltros() {
+        $("#filtroNatureza").value = '';
+        $("#filtroTipoLancamento").value = '';
+        $("#filtroTipoLancamento").disabled = true;
+        $("#filtroSubtipo").value = '';
+        $("#filtroSubtipo").disabled = true;
+        $("#filtroFornecedor").value = '';
+        $("#filtroDataInicio").value = '';
+        $("#filtroDataFim").value = '';
+        refreshList();
+        showToast('Filtros limpos!', 'info');
+      }
+
+      function atualizarFiltroTipos() {
+        const natureza = $("#filtroNatureza").value;
+        const select = $("#filtroTipoLancamento");
+        const subtipoSelect = $("#filtroSubtipo");
+        
+        // Resetar subtipo
+        subtipoSelect.innerHTML = '<option value="">Todos</option>';
+        subtipoSelect.disabled = true;
+        
+        if (!natureza) {
+          select.innerHTML = '<option value="">Todos</option>';
+          select.disabled = true;
+          return;
+        }
+
+        const tipos = tiposLancamento.filter(t => t.natureza === natureza);
+        select.innerHTML = `
+          <option value="">Todos</option>
+          ${tipos.map(t => `<option value="${t.id}">${t.nome}</option>`).join('')}
+        `;
+        select.disabled = false;
+      }
+
+      async function atualizarFiltroSubtipos() {
+        const tipoId = $("#filtroTipoLancamento").value;
+        const select = $("#filtroSubtipo");
+        
+        if (!tipoId) {
+          select.innerHTML = '<option value="">Todos</option>';
+          select.disabled = true;
+          return;
+        }
+
+        try {
+          const res = await fetch(`${API_BASE}/api/tipos/${tipoId}/subtipos`);
+          if (!res.ok) throw new Error('Falha ao carregar subtipos');
+          const data = await res.json();
+          const ativos = Array.isArray(data) ? data.filter(s => s.ativo) : [];
+          
+          if (ativos.length === 0) {
+            select.innerHTML = '<option value="">Nenhum subtipo</option>';
+            select.disabled = true;
+            return;
+          }
+          
+          select.innerHTML = `
+            <option value="">Todos</option>
+            ${ativos.map(s => `<option value="${s.id}">${s.nome}</option>`).join('')}
+          `;
+          select.disabled = false;
+        } catch (err) {
+          console.error(err);
+          select.innerHTML = '<option value="">Erro ao carregar</option>';
+          select.disabled = true;
+        }
+      }
+
+      // render tabela simples
+      const listContainer = document.createElement('div');
+      listContainer.className = 'card';
+      listContainer.style.marginTop = '18px';
+      listContainer.innerHTML = `
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px">
+          <h3 style="margin:0">Últimos lançamentos</h3>
+          <button onclick="toggleFiltros()" class="btn-link" style="padding:8px 16px">🔍 Filtros</button>
+        </div>
+        <div id="filtros" style="display:none; padding:16px; background:rgba(15,23,42,0.5); border-radius:12px; margin-bottom:16px">
+          <div class="input-row" style="gap:12px; margin-bottom:12px">
+            <div>
+              <label for="filtroNatureza">Natureza</label>
+              <select id="filtroNatureza" onchange="atualizarFiltroTipos()">
+                <option value="">Todas</option>
+                <option value="receita">Receita</option>
+                <option value="despesa">Despesa</option>
+              </select>
+            </div>
+            <div>
+              <label for="filtroTipoLancamento">Tipo de Lançamento</label>
+              <select id="filtroTipoLancamento" disabled onchange="atualizarFiltroSubtipos()">
+                <option value="">Todos</option>
+              </select>
+            </div>
+            <div>
+              <label for="filtroSubtipo">Subtipo</label>
+              <select id="filtroSubtipo" disabled>
+                <option value="">Todos</option>
+              </select>
+            </div>
+          </div>
+          <div class="input-row" style="gap:12px">
+            <div>
+              <label for="filtroFornecedor">Fornecedor</label>
+              <input type="text" id="filtroFornecedor" placeholder="Digite para buscar...">
+            </div>
+            <div>
+              <label for="filtroDataInicio">Data Início</label>
+              <input type="date" id="filtroDataInicio">
+            </div>
+            <div>
+              <label for="filtroDataFim">Data Fim</label>
+              <input type="date" id="filtroDataFim">
+            </div>
+          </div>
+          <div class="buttons" style="margin-top:12px">
+            <button onclick="limparFiltros()" class="btn btn-outline">Limpar</button>
+            <button onclick="aplicarFiltros()" class="btn btn-primary">Aplicar</button>
+          </div>
+        </div>
+        <div id="lista"></div>
+      `;
+      document.querySelector('.container').appendChild(listContainer);
+
+      function obterNomeTipo(tipoId) {
+        if (!tipoId) return '-';
+        const tipo = tiposLancamento.find(t => t.id === tipoId);
+        return tipo ? tipo.nome : `ID ${tipoId}`;
+      }
+
+      function obterNomeSubtipo(tipoId, subtipoId) {
+        if (!subtipoId) return '-';
+        if (!tipoId || !subtiposCache[tipoId]) return `ID ${subtipoId}`;
+        const subtipo = subtiposCache[tipoId].find(s => s.id === subtipoId);
+        return subtipo ? subtipo.nome : `ID ${subtipoId}`;
+      }
+
+      function tabela(l){
+        if(!l || l.length === 0) return '<p class="hint">Nenhum lançamento encontrado.</p>';
+        const rows = l.map(x => {
+          const nomeTipo = obterNomeTipo(x.tipo_lancamento_id);
+          const nomeSubtipo = obterNomeSubtipo(x.tipo_lancamento_id, x.subtipo_lancamento_id);
+          
+          return `
+          <tr style="border-bottom: 1px solid rgba(148,163,184,0.1)" id="lanc-${x.id}">
+            <td style="padding: 12px 8px">${formatarDataBR(x.data_primeiro_vencimento)}</td>
+            <td style="padding: 12px 8px">${x.id}</td>
+            <td style="padding: 12px 8px">
+              <span style="display:inline-block; padding:4px 10px; border-radius:6px; font-size:12px; font-weight:600; 
+                background: ${x.tipo === 'receita' ? 'rgba(34,197,94,0.15)' : 'rgba(239,68,68,0.15)'};
+                color: ${x.tipo === 'receita' ? '#22c55e' : '#ef4444'}">
+                ${x.tipo === 'receita' ? '📈' : '📉'} ${x.tipo}
+              </span>
+            </td>
+            <td style="padding: 12px 8px; font-size:13px; color:var(--muted)">${nomeTipo}</td>
+            <td style="padding: 12px 8px; font-size:12px; color:var(--text)">${nomeSubtipo}</td>
+            <td style="padding: 12px 8px">${x.fornecedor}</td>
+            <td style="padding: 12px 8px; font-weight:600">${brl.format(x.valor_total)}</td>
+            <td style="padding: 12px 8px; text-align:center">
+              <button onclick="toggleParcelas(${x.id})" style="padding:4px 10px; border:none; border-radius:6px; background:rgba(168,85,247,0.15); color:#a855f7; cursor:pointer; font-size:12px; font-weight:600" title="Ver Parcelas">
+                ${x.numero_parcelas}x 📋
+              </button>
+            </td>
+            <td style="padding: 12px 8px">${brl.format(x.valor_medio_parcelas)}</td>
+            <td style="padding: 12px 8px">${formatarDataBR(x.data_lancamento)}</td>
+            <td style="padding: 12px 8px; text-align:right">
+              <button onclick="editarLancamento(${x.id})" style="padding:6px 12px; border:none; border-radius:6px; background:rgba(34,211,238,0.15); color:#22d3ee; cursor:pointer; margin-right:6px" title="Editar">
+                ✏️
+              </button>
+              <button onclick="excluirLancamento(${x.id})" style="padding:6px 12px; border:none; border-radius:6px; background:rgba(239,68,68,0.15); color:#ef4444; cursor:pointer" title="Excluir">
+                🗑️
+              </button>
+            </td>
+          </tr>
+          <tr id="parcelas-${x.id}" style="display:none">
+            <td colspan="11" style="padding:0; background:rgba(15,23,42,0.5)">
+              <div style="padding:16px; border-left: 3px solid #a855f7">
+                <div id="parcelas-content-${x.id}">Carregando parcelas...</div>
+              </div>
+            </td>
+          </tr>`;
+        }).join('');
+        return `
+          <div style="overflow:auto">
+          <table style="width:100%; border-collapse:collapse; font-size:14px">
+            <thead>
+              <tr style="text-align:left; color:var(--muted); border-bottom: 2px solid rgba(148,163,184,0.2)">
+                <th style="padding: 12px 8px">Data Venc.</th>
+                <th style="padding: 12px 8px">ID</th>
+                <th style="padding: 12px 8px">Natureza</th>
+                <th style="padding: 12px 8px">Tipo</th>
+                <th style="padding: 12px 8px">Subtipo</th>
+                <th style="padding: 12px 8px">Fornecedor</th>
+                <th style="padding: 12px 8px">Valor Total</th>
+                <th style="padding: 12px 8px; text-align:center">Parcelas</th>
+                <th style="padding: 12px 8px">Média</th>
+                <th style="padding: 12px 8px">Data Lanç.</th>
+                <th style="padding: 12px 8px; text-align:right">Ações</th>
+              </tr>
+            </thead>
+            <tbody>${rows}</tbody>
+          </table>
+          </div>`;
+      }
+
+      let editandoId = null;
+
+      async function refreshList(){
+        const data = await listLancamentos().catch(()=>[]);
+        document.getElementById('lista').innerHTML = tabela(data);
+      }
+
+      async function editarLancamento(id) {
+        try {
+          const res = await fetch(`${API_BASE}/api/lancamentos/${id}`);
+          if (!res.ok) throw new Error('Lançamento não encontrado');
+          
+          const lanc = await res.json();
+          
+          // Preencher o formulário
+          dataLancEl.value = lanc.data_lancamento;
+          $("#tipo").value = lanc.tipo;
+          await carregarTiposLancamento();
+          atualizarTiposLancamento();
+          $("#tipoLancamento").value = lanc.tipo_lancamento_id || '';
+          if (lanc.tipo_lancamento_id) {
+            await carregarSubtipos(lanc.tipo_lancamento_id);
+            $("#subtipoLancamento").value = lanc.subtipo_lancamento_id || '';
+          } else {
+            resetSubtipoSelect();
+          }
+          $("#fornecedor").value = lanc.fornecedor;
+          valorTotalEl.value = lanc.valor_total;
+          dataPrimVencEl.value = lanc.data_primeiro_vencimento;
+          parcelasEl.value = lanc.numero_parcelas;
+          $("#observacao").value = lanc.observacao || '';
+          
+          updateValorMedio();
+          
+          // Marcar como editando
+          editandoId = id;
+          
+          // Alterar interface para modo edição
+          btnSubmit.textContent = 'Atualizar';
+          btnCancelar.style.display = 'inline-block';
+          
+          // Scroll para o formulário
+          form.scrollIntoView({ behavior: 'smooth', block: 'start' });
+          
+          showToast(`Editando lançamento #${id}`, 'info');
+        } catch (err) {
+          showToast('Erro ao carregar lançamento: ' + err.message, 'error');
+        }
+      }
+
+      async function excluirLancamento(id) {
+        ConfirmDialog.show({
+          title: 'Excluir lançamento',
+          message: `Tem certeza que deseja excluir o lançamento #${id}?\n\nEsta ação não pode ser desfeita.`,
+          confirmText: 'Excluir',
+          cancelText: 'Cancelar',
+          variant: 'danger',
+          onConfirm: async () => {
+            try {
+              await fetchWithLoading(`${API_BASE}/api/lancamentos/${id}`, { method: 'DELETE' }, 'Excluindo...');
+              Toast.success('Lançamento excluído com sucesso!');
+              await refreshList();
+            } catch (err) {
+              Toast.error('Erro: ' + (err.message || 'Falha ao excluir'));
+            }
+          }
+        });
+      }
+
+      // Hook submit para salvar no banco
+      form.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        
+        // Garantir que tipo_lancamento_id seja um número inteiro ou null
+        const tipoLancIdRaw = document.getElementById('tipoLancamento').value;
+        const tipoLancId = tipoLancIdRaw ? parseInt(tipoLancIdRaw, 10) : null;
+        const subtipoLancIdRaw = document.getElementById('subtipoLancamento').value;
+        const subtipoLancId = subtipoLancIdRaw ? parseInt(subtipoLancIdRaw, 10) : null;
+        
+        // Garantir que os valores numéricos sejam números
+        const valorTotal = parseNumber(valorTotalEl.value);
+        const numParcelas = parseInt(parcelasEl.value, 10) || 1;
+        const valorMedioParcelas = numParcelas > 0 ? Math.round((valorTotal / numParcelas) * 100) / 100 : 0;
+        
+        const payload = {
+          data_lancamento: dataLancEl.value,
+          tipo: document.getElementById('tipo').value,
+          tipo_lancamento_id: tipoLancId,
+          subtipo_lancamento_id: subtipoLancId,
+          fornecedor: document.getElementById('fornecedor').value.trim(),
+          valor_total: valorTotal,
+          data_primeiro_vencimento: dataPrimVencEl.value,
+          numero_parcelas: numParcelas,
+          valor_medio_parcelas: valorMedioParcelas,
+          observacao: document.getElementById('observacao').value.trim()
+        };
+        
+        console.log('Payload sendo enviado:', payload);
+        
+        try{
+          let saved;
+          let salvou = false;
+          if (editandoId) {
+            // Atualizar
+            saved = await fetchWithLoading(`${API_BASE}/api/lancamentos/${editandoId}`, {
+              method: 'PUT',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify(payload),
+              timeout: 20000
+            }, 'Atualizando lançamento...');
+            salvou = true;
+            editandoId = null;
+            btnSubmit.textContent = 'Lançar';
+            btnCancelar.style.display = 'none';
+          } else {
+            // Criar novo
+            saved = await saveLancamento(payload);
+            salvou = true;
+          }
+          
+          try {
+            await refreshList();
+          } catch (e) {
+            console.warn('Falha ao atualizar lista após salvar:', e);
+          }
+
+          try {
+            form.reset();
+            dataLancEl.value = todayISO();
+            dataPrimVencEl.value = todayISO();
+            valorMedioEl.textContent = brl.format(0);
+            atualizarTiposLancamento();
+            resetSubtipoSelect();
+          } catch (e) {
+            console.warn('Falha ao resetar formulário:', e);
+          }
+
+          // Só mostrar sucesso ao final de tudo para evitar "salvou mas deu erro"
+          Toast.success(editandoId ? 'Lançamento atualizado com sucesso!' : 'Lançamento salvo com sucesso!');
+        }catch(err){
+          console.error('Erro ao salvar:', err);
+          // Se já salvou mas algum passo subsequente falhou, avisar como warning
+          if (typeof salvou !== 'undefined' && salvou) {
+            Toast.warning('Lançamento salvo, mas ocorreu um problema ao finalizar: ' + (err.message || 'verifique a conexão'));
+          } else {
+            showToast('Erro: ' + err.message, 'error');
+          }
+        }
+      });
+
+      // === FUNÇÕES DE PARCELAS ===
+      
+      async function toggleParcelas(lancamentoId) {
+        const row = document.getElementById(`parcelas-${lancamentoId}`);
+        const isVisible = row.style.display !== 'none';
+        
+        if (isVisible) {
+          row.style.display = 'none';
+        } else {
+          row.style.display = 'table-row';
+          await carregarParcelas(lancamentoId);
+        }
+      }
+      
+      async function carregarParcelas(lancamentoId) {
+        const contentDiv = document.getElementById(`parcelas-content-${lancamentoId}`);
+        
+        try {
+          const res = await fetch(`${API_BASE}/api/lancamentos/${lancamentoId}/parcelas`, {
+            credentials: 'include'
+          });
+          if (!res.ok) throw new Error('Erro ao carregar parcelas');
+          
+          const parcelas = await res.json();
+          
+          if (!parcelas || parcelas.length === 0) {
+            contentDiv.innerHTML = '<p style="color:var(--muted); margin:0">Nenhuma parcela encontrada.</p>';
+            return;
+          }
+          
+          const parcelasHtml = parcelas.map(p => `
+            <div style="display:flex; align-items:center; justify-content:space-between; padding:12px; background:var(--card); border-radius:8px; margin-bottom:8px">
+              <div style="flex:1">
+                <span style="font-weight:600; color:${p.paga ? '#22c55e' : 'var(--text)'}">
+                  Parcela ${p.numero_parcela}
+                </span>
+                <span style="color:var(--muted); margin-left:12px">
+                  Venc: ${formatarDataBR(p.data_vencimento)}
+                </span>
+              </div>
+              <div style="flex:1; text-align:center">
+                <span style="font-weight:600">${brl.format(p.valor)}</span>
+                ${p.paga && p.valor_pago ? `<br><span style="font-size:12px; color:var(--muted)">Pago: ${brl.format(p.valor_pago)}</span>` : ''}
+              </div>
+              <div style="flex:1; text-align:center">
+                ${p.paga ? 
+                  `<span style="display:inline-block; padding:4px 10px; border-radius:6px; font-size:12px; font-weight:600; background:rgba(34,197,94,0.15); color:#22c55e">
+                    ✓ Paga em ${formatarDataBR(p.data_pagamento)}
+                  </span>` : 
+                  `<span style="display:inline-block; padding:4px 10px; border-radius:6px; font-size:12px; font-weight:600; background:rgba(239,68,68,0.15); color:#ef4444">
+                    ○ A pagar
+                  </span>`
+                }
+              </div>
+              <div style="flex:0 0 auto; text-align:right">
+                ${!p.paga ? 
+                  `<button onclick="abrirModalEdicaoParcela(${p.id}, '${p.data_vencimento}', ${p.valor})" style="padding:6px 14px; margin-right:6px; border:none; border-radius:6px; background:rgba(59,130,246,0.15); color:#3b82f6; cursor:pointer; font-size:12px; font-weight:600" title="Editar parcela">
+                    ✏️ Editar
+                  </button>
+                  <button onclick="abrirModalPagamento(${p.id}, ${p.valor})" style="padding:6px 14px; border:none; border-radius:6px; background:rgba(34,197,94,0.15); color:#22c55e; cursor:pointer; font-size:12px; font-weight:600" title="Marcar como paga">
+                    💰 Pagar
+                  </button>` :
+                  `<button onclick="desmarcarPaga(${p.id}, ${lancamentoId})" style="padding:6px 14px; border:none; border-radius:6px; background:rgba(239,68,68,0.15); color:#ef4444; cursor:pointer; font-size:12px" title="Desmarcar como paga">
+                    ✗
+                  </button>`
+                }
+              </div>
+            </div>
+          `).join('');
+          
+          contentDiv.innerHTML = parcelasHtml;
+        } catch (err) {
+          console.error('Erro ao carregar parcelas:', err);
+          contentDiv.innerHTML = '<p style="color:#ef4444; margin:0">Erro ao carregar parcelas.</p>';
+        }
+      }
+      
+      async function abrirModalPagamento(parcelaId, valorOriginal) {
+        PromptDialog.show({
+          title: '📅 Data de pagamento',
+          message: 'Informe a data em que a parcela foi paga:',
+          type: 'date',
+          defaultValue: todayISO(),
+          required: true,
+          onConfirm: (dataPagamento) => {
+            // Agora pedir o valor
+            PromptDialog.show({
+              title: '💰 Valor pago',
+              message: 'Informe o valor efetivamente pago:',
+              type: 'number',
+              defaultValue: valorOriginal.toFixed(2),
+              placeholder: '0.00',
+              required: true,
+              onConfirm: (valorPago) => {
+                marcarParcelaPaga(parcelaId, dataPagamento, parseFloat(valorPago));
+              }
+            });
+          }
+        });
+      }
+      
+      async function marcarParcelaPaga(parcelaId, dataPagamento, valorPago) {
+        try {
+          const res = await fetch(`${API_BASE}/api/parcelas/${parcelaId}/pagar`, {
+            method: 'PATCH',
+            credentials: 'include',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              paga: true,
+              data_pagamento: dataPagamento,
+              valor_pago: valorPago
+            })
+          });
+          
+          if (!res.ok) throw new Error('Erro ao marcar parcela como paga');
+          
+          showToast('Parcela marcada como paga!', 'success');
+          
+          // Recarregar parcelas da linha que está aberta
+          const parcelaObj = await res.json();
+          await carregarParcelas(parcelaObj.lancamento_id);
+        } catch (err) {
+          console.error('Erro:', err);
+          showToast('Erro: ' + err.message, 'error');
+        }
+      }
+      
+      async function desmarcarPaga(parcelaId, lancamentoId) {
+        ConfirmDialog.show({
+          title: 'Desmarcar parcela',
+          message: 'Deseja desmarcar esta parcela como paga?',
+          confirmText: 'Desmarcar',
+          cancelText: 'Cancelar',
+          variant: 'danger',
+          onConfirm: async () => {
+            try {
+              await fetchWithLoading(`${API_BASE}/api/parcelas/${parcelaId}/pagar`, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ paga: false })
+              }, 'Atualizando...');
+              Toast.success('Parcela desmarcada!');
+              await carregarParcelas(lancamentoId);
+            } catch (err) {
+              console.error('Erro:', err);
+              Toast.error('Erro: ' + err.message);
+            }
+          }
+        });
+      }
+
+      async function abrirModalEdicaoParcela(parcelaId, dataVencimento, valorAtual) {
+        PromptDialog.show({
+          title: '📅 Nova data de vencimento',
+          message: 'Informe a nova data de vencimento da parcela:',
+          type: 'date',
+          defaultValue: dataVencimento,
+          required: true,
+          onConfirm: (novaData) => {
+            // Agora pedir o novo valor
+            PromptDialog.show({
+              title: '💰 Novo valor',
+              message: 'Informe o novo valor da parcela:',
+              type: 'number',
+              defaultValue: parseFloat(valorAtual).toFixed(2),
+              placeholder: '0.00',
+              required: true,
+              onConfirm: async (novoValor) => {
+                try {
+                  const parcelaObj = await fetchWithLoading(`${API_BASE}/api/parcelas/${parcelaId}`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                      data_vencimento: novaData,
+                      valor: parseFloat(novoValor)
+                    })
+                  }, 'Atualizando parcela...');
+                  Toast.success('Parcela editada com sucesso!');
+                  // Recarregar parcelas da linha que está aberta
+                  await carregarParcelas(parcelaObj.lancamento_id);
+                } catch (err) {
+                  console.error('Erro:', err);
+                  Toast.error('Erro: ' + err.message);
+                }
+              }
+            });
+          }
+        });
+      }
+
+      // Inicializa lista
+      refreshList();
+
+      // ============================================
+      // ATALHOS DE TECLADO
+      // ============================================
+      KeyboardShortcuts.register('ctrl+n', () => {
+        btnZerar.click();
+        dataLancEl.focus();
+      }, 'Novo lançamento');
+
+      KeyboardShortcuts.register('ctrl+s', (e) => {
+        e.preventDefault();
+        if (!btnSubmit.disabled) {
+          btnSubmit.click();
+        }
+      }, 'Salvar lançamento');
+
+      KeyboardShortcuts.register('ctrl+l', () => {
+        refreshList();
+        Toast.show('Lista atualizada!', 'info');
+      }, 'Atualizar lista');
+    </script>
+  </body>
+</html>
