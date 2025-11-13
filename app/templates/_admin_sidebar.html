@@ -1,0 +1,83 @@
+<!-- Sidebar/Admin Navegação -->
+<style>
+  .admin-nav-button{
+    position: fixed; top: 16px; left: 16px; z-index: 1100;
+    padding: 10px 12px; border-radius: 10px;
+    border: 1px solid rgba(148,163,184,0.25);
+    background: rgba(15,23,42,0.55); color: var(--text);
+    cursor: pointer; font-weight: 600;
+  }
+  #adminNavOverlay{ display:none; position:fixed; inset:0; background:rgba(0,0,0,0.6); z-index:1090; }
+  #adminSidebar{
+    position:fixed; top:0; left:0; bottom:0; width:260px; max-width:90vw;
+    background: var(--card); color: var(--text);
+    border-right: 1px solid rgba(148,163,184,0.15);
+    transform: translateX(-100%); transition: transform .25s ease; z-index: 1100;
+    display:flex; flex-direction:column;
+  }
+  #adminSidebar .side-header{ display:flex; align-items:center; justify-content:space-between; padding:16px; border-bottom:1px solid rgba(148,163,184,0.12); }
+  #adminSidebar .side-header strong{ font-size: 16px; }
+  #adminSidebar .side-close{ background:transparent; color:var(--text); border:none; font-size:20px; cursor:pointer; }
+  #adminSidebar nav{ padding:10px 8px; overflow:auto; }
+  #adminSidebar a{
+    display:flex; align-items:center; gap:10px; text-decoration:none;
+    color: var(--text); padding:10px 12px; border-radius:8px;
+  }
+  #adminSidebar a:hover{ background: rgba(148,163,184,0.12); }
+  #adminSidebar a.active{
+    background: rgba(34,211,238,0.15);
+    border-left: 3px solid #22d3ee; /* teal admin */
+  }
+  #adminSidebar .section-title{ padding: 10px 12px; color: var(--muted); font-weight:700; font-size:12px; text-transform: uppercase; letter-spacing: .6px; }
+  @media (min-width: 1024px){
+    #adminSidebar{ transform: translateX(0) !important; }
+    #adminNavOverlay{ display: none !important; }
+    .admin-nav-button{ display: none !important; }
+    body > .container{ margin-left: 260px; }
+  }
+</style>
+
+<button id="btnOpenAdminSidebar" class="admin-nav-button">☰ Admin</button>
+<div id="adminNavOverlay" aria-hidden="true"></div>
+<aside id="adminSidebar" role="navigation" aria-label="Menu do administrador">
+  <div class="side-header">
+    <strong>🛠️ Administração</strong>
+    <button id="btnCloseAdminSidebar" class="side-close" aria-label="Fechar">✕</button>
+  </div>
+  <nav>
+    <div class="section-title">Gerencial</div>
+    <a href="/admin/clientes">👥 Clientes</a>
+    <div class="section-title">Sistema</div>
+    <a href="/login" data-action="sairDoSistema" style="color:#ef4444;">🚪 Sair</a>
+  </nav>
+</aside>
+<script{% if csp_nonce %} nonce="{{ csp_nonce }}"{% endif %}>
+  (function(){
+    function toggleNav(open){
+      const sb=document.getElementById('adminSidebar');
+      const ov=document.getElementById('adminNavOverlay');
+      if(open){ sb.style.transform='translateX(0)'; ov.style.display='block'; ov.setAttribute('aria-hidden','false'); }
+      else { sb.style.transform='translateX(-100%)'; ov.style.display='none'; ov.setAttribute('aria-hidden','true'); }
+    }
+    const openBtn=document.getElementById('btnOpenAdminSidebar');
+    const closeBtn=document.getElementById('btnCloseAdminSidebar');
+    const overlay=document.getElementById('adminNavOverlay');
+    if(openBtn) openBtn.addEventListener('click', ()=> toggleNav(true));
+    if(closeBtn) closeBtn.addEventListener('click', ()=> toggleNav(false));
+    if(overlay) overlay.addEventListener('click', ()=> toggleNav(false));
+    document.addEventListener('keydown', (e)=>{ if(e.key==='Escape') toggleNav(false); });
+
+    try{
+      const path = window.location.pathname.replace(/\/$/, '') || '/';
+      const links = document.querySelectorAll('#adminSidebar nav a');
+      links.forEach(a=>{
+        const href = (a.getAttribute('href')||'').replace(/\/$/, '') || '/';
+        if(href === '/'){
+          if(path === '/') { a.classList.add('active'); a.setAttribute('aria-current','page'); }
+        } else if (path.startsWith(href)) {
+          a.classList.add('active'); a.setAttribute('aria-current','page');
+        }
+      });
+    }catch(_e){}
+  })();
+</script>

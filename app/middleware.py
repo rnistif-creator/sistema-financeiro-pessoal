@@ -2,12 +2,13 @@
 Middleware de Autenticação
 Dependências para proteger rotas
 """
-from fastapi import Depends, HTTPException, status, Cookie
+from fastapi import Depends, HTTPException, status, Cookie, Request
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from sqlalchemy.orm import Session
 from typing import Optional, Any
 from app.auth import decode_access_token, get_user_by_id, TokenData
 from datetime import date, timedelta
+import os
 
 # Security scheme para Bearer token
 security = HTTPBearer(auto_error=False)
@@ -114,6 +115,33 @@ async def get_current_admin_user(
         )
     
     return current_user
+
+# ============================================================================
+# RESTRIÇÃO POR IP PARA ÁREA ADMINISTRATIVA (opcional via env ADMIN_ALLOWED_IPS)
+# ============================================================================
+
+async def ensure_admin_ip_allowed(request: Request) -> bool:
+    """
+    Se ADMIN_ALLOWED_IPS estiver definido (lista separada por vírgula),
+    valida se o IP do cliente está permitido para acessar rotas administrativas.
+    Aceita também cabeçalho X-Forwarded-For (primeiro IP) quando presente.
+    """
+    ips_env = os.getenv("ADMIN_ALLOWED_IPS", "").strip()
+    if not ips_env:
+        return True  # sem restrição configurada
+
+    allowed = {ip.strip() for ip in ips_env.split(',') if ip.strip()}
+    client_ip = None
+    # Respeita proxy/reverso quando presente
+    fwd = request.headers.get("x-forwarded-for") or request.headers.get("X-Forwarded-For")
+    if fwd:
+        client_ip = fwd.split(',')[0].strip()
+    elif request.client:
+        client_ip = request.client.host
+
+    if client_ip not in allowed:
+        raise HTTPException(status_code=403, detail="Computador não autorizado para área administrativa")
+    return True
 
 async def get_optional_user(
     credentials: Optional[HTTPAuthorizationCredentials] = Depends(security),
