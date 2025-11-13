@@ -95,7 +95,7 @@
     <p>
       Não foi possível conectar ao servidor. Verifique sua conexão com a internet e tente novamente.
     </p>
-    <button class="retry-button" onclick="window.location.reload()">
+    <button class="retry-button" data-action="reloadPage">
       🔄 Tentar Novamente
     </button>
     
@@ -110,6 +110,7 @@
   </div>
   
   <script{%- if csp_nonce %} nonce="{{ csp_nonce }}"{%- endif %}>
+    function reloadPage(){ window.location.reload(); }
     // Verificar conexão periodicamente
     setInterval(() => {
       if (navigator.onLine) {

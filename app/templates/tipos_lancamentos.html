@@ -232,7 +232,7 @@
       <!-- Formulário de Novo Subtipo -->
       <div style="background:rgba(34,211,238,0.05); border:1px solid rgba(34,211,238,0.2); border-radius:12px; padding:20px; margin-bottom:24px;">
         <h3 style="margin:0 0 16px; font-size:16px; color:var(--primary);">➕ Adicionar Subtipo</h3>
-        <form id="formSubtipo" onsubmit="salvarSubtipo(event)">
+        <form id="formSubtipo">
           <input type="hidden" id="subtipoIdEdicao" value="">
           <div style="display:flex; gap:12px; align-items:end; flex-wrap:wrap;">
             <div style="flex:1; min-width:200px;">
@@ -705,8 +705,8 @@
               <span style="padding:4px 8px; border-radius:6px; font-size:12px; ${sub.ativo ? 'background:rgba(34,197,94,0.1); color:var(--success);' : 'background:rgba(148,163,184,0.1); color:var(--muted);'}">
                 ${sub.ativo ? '✓ Ativo' : '✗ Inativo'}
               </span>
-              <button type="button" class="btn-edit-subtipo" onclick="editarSubtipo(${sub.id})" title="Editar">✏️</button>
-              <button type="button" class="btn-delete-subtipo" onclick="excluirSubtipo(${sub.id})" title="Excluir">×</button>
+              <button type="button" class="btn-edit-subtipo" data-onclick="editarSubtipo(${sub.id})" title="Editar">✏️</button>
+              <button type="button" class="btn-delete-subtipo" data-onclick="excluirSubtipo(${sub.id})" title="Excluir">×</button>
             </div>
           </div>
         `).join('');
@@ -817,7 +817,12 @@
         carregarTipos();
         Toast.info('Tipos atualizados!');
       }, 'Atualizar tipos');
-      
+      // Registrar submit do form de subtipo (CSP)
+      document.getElementById('formSubtipo')?.addEventListener('submit', salvarSubtipo);
+
+      // Expor funções do modal no escopo global para events.js
+      window.editarSubtipo = editarSubtipo;
+      window.excluirSubtipo = excluirSubtipo;
       // Event listeners estáticos (CSP compliance)
       document.getElementById('btnFecharModalSubtipos')?.addEventListener('click', fecharModalSubtipos);
       document.getElementById('btnCancelarEdicao')?.addEventListener('click', cancelarEdicao);

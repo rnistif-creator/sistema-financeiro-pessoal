@@ -41,7 +41,7 @@
           <div class="input-row">
             <div>
               <label for="tipo">Natureza</label>
-              <select id="tipo" name="tipo" required onchange="atualizarTiposLancamento()">
+              <select id="tipo" name="tipo" required data-onchange="atualizarTiposLancamento()">
                 <option value="" disabled selected>Selecione</option>
                 <option value="despesa">Despesa</option>
                 <option value="receita">Receita</option>
@@ -453,7 +453,7 @@
           <div class="input-row" style="gap:12px; margin-bottom:12px">
             <div>
               <label for="filtroNatureza">Natureza</label>
-              <select id="filtroNatureza" onchange="atualizarFiltroTipos()">
+              <select id="filtroNatureza" data-onchange="atualizarFiltroTipos()">
                 <option value="">Todas</option>
                 <option value="receita">Receita</option>
                 <option value="despesa">Despesa</option>
@@ -461,7 +461,7 @@
             </div>
             <div>
               <label for="filtroTipoLancamento">Tipo de Lançamento</label>
-              <select id="filtroTipoLancamento" disabled onchange="atualizarFiltroSubtipos()">
+              <select id="filtroTipoLancamento" disabled data-onchange="atualizarFiltroSubtipos()">
                 <option value="">Todos</option>
               </select>
             </div>
@@ -946,6 +946,9 @@
       window.toggleFiltros = toggleFiltros;
       window.limparFiltros = limparFiltros;
       window.aplicarFiltros = aplicarFiltros;
+      window.atualizarTiposLancamento = atualizarTiposLancamento;
+      window.atualizarFiltroTipos = atualizarFiltroTipos;
+      window.atualizarFiltroSubtipos = atualizarFiltroSubtipos;
       window.toggleParcelas = toggleParcelas;
       window.editarLancamento = editarLancamento;
       window.excluirLancamento = excluirLancamento;
