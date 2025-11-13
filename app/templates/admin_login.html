@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Admin - Sistema Financeiro</title>
+  <link rel="manifest" href="/static/manifest.json" />
+  <link rel="stylesheet" href="/static/components.css" />
+  <link rel="icon" href="/favicon.ico" />
+  <link rel="icon" type="image/png" sizes="32x32" href="/static/icons/domo360-32x32.png" />
+  <link rel="apple-touch-icon" href="/static/icons/domo360-180x180.png" />
+  <style>
+    body { 
+      background: radial-gradient(1200px 800px at 10% -10%, rgba(34,211,238,0.15), transparent),
+                  radial-gradient(900px 600px at 110% 10%, rgba(6,182,212,0.15), transparent),
+                  linear-gradient(180deg, #0f172a, #0b1220);
+      color: #e2e8f0; font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif; min-height: 100vh; display: grid; place-items: center; margin: 0; 
+    }
+    @media (prefers-reduced-motion: no-preference) {
+      body { background-size: 100% 100%, 100% 100%, auto; animation: bg-pan 14s linear infinite alternate; }
+      @keyframes bg-pan { from { background-position: 0 0, 0 0, 0 0 } to { background-position: -40px -20px, 40px 20px, 0 0 } }
+    }
+    .card { width: 100%; max-width: 420px; background: rgba(15, 23, 42, 0.7); border: 1px solid rgba(34,211,238,0.2); border-radius: 16px; padding: 28px; box-shadow: 0 10px 30px rgba(0,0,0,0.3), 0 0 80px rgba(6,182,212,0.08); backdrop-filter: blur(10px); }
+    .badge { display: inline-block; padding: 4px 12px; background: rgba(34,211,238,0.15); border: 1px solid rgba(34,211,238,0.35); border-radius: 20px; font-size: 11px; font-weight: 700; color: #a5f3fc; letter-spacing: .5px; margin-bottom: 16px; }
+    h1 { margin: 0 0 6px; font-size: 20px; color: #22d3ee; text-align:center; }
+    .brand-wrap{ display:flex; justify-content:center; margin: 10px 0 18px; }
+    .brand-wrap img{ width: 160px; height: auto; display:block; filter: drop-shadow(0 6px 16px rgba(0,0,0,0.35)); background: rgba(255,255,255,0.04); border:1px solid rgba(255,255,255,0.08); border-radius:12px; padding:8px; }
+    p { margin: 0 0 18px; color: #94a3b8; font-size: 14px; text-align: center; }
+    label { display: block; font-size: 13px; color: #cbd5e1; margin: 10px 0 6px; }
+    input { width: 100%; padding: 12px; border-radius: 10px; border: 1px solid rgba(251,146,60,0.2); background: rgba(2,6,23,0.6); color: #e2e8f0; }
+    input:focus { outline: none; border-color: rgba(251,146,60,0.4); }
+    .input-wrap { position: relative; }
+    .toggle-pass { position: absolute; right: 8px; top: 50%; transform: translateY(-50%); background: transparent; border: 0; color: #94a3b8; cursor: pointer; padding: 6px; border-radius: 8px; }
+    .toggle-pass:hover { color: #e2e8f0; background: rgba(148,163,184,0.12); }
+    button { width: 100%; margin-top: 18px; padding: 12px; border: none; border-radius: 10px; background: linear-gradient(135deg,#22d3ee,#06b6d4); color: white; font-weight: 600; cursor: pointer; box-shadow: 0 6px 20px rgba(34,211,238,0.28); transition: transform .08s ease; }
+    button:active { transform: translateY(1px); }
+    .btn-loading { position: relative; color: transparent !important; }
+    .btn-loading::after { content: ""; position: absolute; inset: 0; margin: auto; width: 18px; height: 18px; border: 2px solid rgba(255,255,255,0.6); border-top-color: transparent; border-radius: 50%; animation: spin .8s linear infinite; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    button.secondary { background: rgba(148,163,184,0.15); color: #cbd5e1; box-shadow: none; border: 1px solid rgba(148,163,184,0.25); }
+    button.secondary:hover { background: rgba(148,163,184,0.25); }
+    .error { color: #fecaca; background: rgba(239,68,68,0.12); border: 1px solid rgba(239,68,68,0.25); padding: 10px; border-radius: 8px; margin-bottom: 10px; display: none; }
+    .success { color: #86efac; background: rgba(34,197,94,0.12); border: 1px solid rgba(34,197,94,0.25); padding: 10px; border-radius: 8px; margin-bottom: 10px; display: none; }
+    .footer { margin-top: 16px; font-size: 12px; color: #64748b; text-align: center; }
+    .footer a { color: #22d3ee; text-decoration: none; font-weight: 600; }
+    .footer a:hover { text-decoration: underline; }
+    .hint { font-size: 12px; color: #fca5a5; display:none; margin-top: 6px; }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <div style="text-align:center;"><span class="badge">🔒 ACESSO RESTRITO</span></div>
+    <h1>Painel Administrativo</h1>
+    <div class="brand-wrap">
+      <img data-brand-logo src="{{ brand_logo_url }}" alt="DOMO360" loading="eager" />
+    </div>
+    <p>Autenticação de administrador</p>
+    <div id="success" class="success" role="alert"></div>
+    <div id="error" class="error" role="alert"></div>
+    <form id="form-admin-login">
+      <label for="email">Email de Administrador</label>
+      <input id="email" name="email" type="email" required autocomplete="username" placeholder="admin@domo360.com" autofocus />
+      <label for="password">Senha</label>
+      <div class="input-wrap">
+        <input id="password" name="password" type="password" required autocomplete="current-password" placeholder="••••••••" />
+        <button type="button" id="togglePass" class="toggle-pass" aria-label="Mostrar senha">👁️</button>
+      </div>
+      <div id="capsHint" class="hint">⚠️ Caps Lock está ativado</div>
+      <button id="btn-login" type="submit">Entrar como Administrador</button>
+    </form>
+    <div class="footer"><a href="/login">← Voltar para login de usuário</a></div>
+  </div>
+
+  <script{%- if csp_nonce %} nonce="{{ csp_nonce }}"{%- endif %}>
+      // Garantir logo com fallback caso domo360-logo.png não exista
+      (function(){
+        const img = document.querySelector('img[data-brand-logo]');
+        if(img){
+          img.addEventListener('error', ()=>{ img.src = '/static/icons/icon-192x192.png'; });
+        }
+      })();
+
+    const params = new URLSearchParams(location.search);
+    const nextUrl = params.get('next') || '/admin';
+    const form = document.getElementById('form-admin-login');
+    const btn = document.getElementById('btn-login');
+    const error = document.getElementById('error');
+    const success = document.getElementById('success');
+    const togglePass = document.getElementById('togglePass');
+    const capsHint = document.getElementById('capsHint');
+
+    // Focus inteligente
+    setTimeout(()=> document.getElementById('email').focus(), 0);
+
+    // Toggle senha
+    togglePass.addEventListener('click', () => {
+      const pwd = document.getElementById('password');
+      const isText = pwd.type === 'text';
+      pwd.type = isText ? 'password' : 'text';
+      togglePass.textContent = isText ? '👁️' : '🙈';
+      togglePass.setAttribute('aria-label', isText ? 'Mostrar senha' : 'Ocultar senha');
+    });
+
+    // Caps Lock hint
+    document.getElementById('password').addEventListener('keydown', (e)=>{
+      if (e.getModifierState && e.getModifierState('CapsLock')) { capsHint.style.display = 'block'; }
+      else { capsHint.style.display = 'none'; }
+    });
+    document.getElementById('password').addEventListener('blur', ()=>{ capsHint.style.display='none'; });
+
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      error.style.display = 'none';
+      
+      // Validação leve de email
+      const emailVal = document.getElementById('email').value.trim();
+      const emailOk = /.+@.+\..+/.test(emailVal);
+      if(!emailOk){
+        error.textContent = 'Informe um e-mail válido';
+        error.style.display = 'block';
+        return;
+      }
+
+      btn.disabled = true; btn.classList.add('btn-loading');
+      try {
+        const email = document.getElementById('email').value.trim();
+        const password = document.getElementById('password').value;
+        
+        const resp = await fetch('/auth/admin/login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email, password })
+        });
+        
+        if (!resp.ok) {
+          const data = await resp.json().catch(() => ({ detail: 'Erro ao autenticar' }));
+          throw new Error(data.detail || 'Credenciais de administrador inválidas');
+        }
+        
+        // Sucesso: redirecionar
+        window.location.href = nextUrl;
+      } catch (err) {
+        error.textContent = err.message || 'Falha na autenticação';
+        error.style.display = 'block';
+      } finally {
+        btn.disabled = false; btn.classList.remove('btn-loading');
+      }
+    });
+  </script>
+</body>
+</html>

@@ -29,7 +29,7 @@ from app.auth import (
 )
 from app.middleware import (
     get_current_user, get_current_admin_user, get_current_active_user,
-    get_optional_user, ensure_subscription
+    get_optional_user, ensure_subscription, ensure_admin_ip_allowed
 )
 
 # Configuração dos caminhos
@@ -264,8 +264,39 @@ def get_template_context(request: Request, **kwargs) -> dict:
     # Adicionar nonce do middleware se disponível
     if hasattr(request.state, 'csp_nonce'):
         context["csp_nonce"] = request.state.csp_nonce
+    # Injetar URL do logo da marca
+    try:
+        context["brand_logo_url"] = get_brand_logo_url()
+    except Exception:
+        # fallback silencioso caso algo dê errado
+        context["brand_logo_url"] = "/static/icons/icon-192x192.png"
     context.update(kwargs)
     return context
+
+# ================= BRANDING HELPERS =====================
+def get_brand_logo_url() -> str:
+    # Permitir sobrescrever por variável de ambiente (URL absoluta ou caminho absoluto em /static)
+    env_url = os.getenv("BRAND_LOGO_URL", "").strip()
+    if env_url:
+        return env_url
+
+    # Ordem de preferência de arquivos locais
+    candidates = [
+        STATIC_DIR / "brand" / "logo.png",
+        STATIC_DIR / "brand" / "logo.svg",
+        STATIC_DIR / "icons" / "domo360-logo.png",
+        STATIC_DIR / "icons" / "icon-192x192.png",
+    ]
+    for path in candidates:
+        if path.exists():
+            try:
+                mtime = int(path.stat().st_mtime)
+            except Exception:
+                mtime = 0
+            rel = "/static/" + str(path.relative_to(STATIC_DIR)).replace("\\", "/")
+            return f"{rel}?v={mtime}"
+    # Último recurso
+    return "/static/icons/icon-192x192.png"
 
 # ================= SECURITY / RATE LIMIT / HEADERS =====================
 ENVIRONMENT = os.getenv("ENVIRONMENT", "development").lower()
@@ -404,6 +435,19 @@ templates = Jinja2Templates(directory=str(TEMPLATES_DIR))
 # Se a pasta static existir, montar os arquivos estáticos
 if STATIC_DIR.exists():
     app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
+
+
+# Favicon handler para evitar 404 e alinhar branding
+@app.get("/favicon.ico", include_in_schema=False)
+def favicon():
+    brand_32 = STATIC_DIR / "icons" / "domo360-32x32.png"
+    icon_32 = STATIC_DIR / "icons" / "icon-32x32.png"
+    brand_192 = STATIC_DIR / "icons" / "domo360-logo.png"
+    target = brand_32 if brand_32.exists() else (icon_32 if icon_32.exists() else brand_192)
+    if not target.exists():
+        # fallback final para o 192 padrão
+        target = STATIC_DIR / "icons" / "icon-192x192.png"
+    return FileResponse(str(target), media_type="image/png")
 
 
 # ========== MIDDLEWARE: BLOQUEIO POR ASSINATURA (somente usuários autenticados) ==========
@@ -1529,6 +1573,214 @@ async def suporte_contato(msg: SupportMessageIn, request: Request):
             "status": "accepted",
             "detail": "Mensagem registrada. Envio de e-mail não configurado.",
         })
+
+# Página de Login Admin
+@app.get("/admin/login")
+async def admin_login_page(request: Request, next: Optional[str] = "/"):
+    return templates.TemplateResponse(
+        "admin_login.html",
+        get_template_context(request, next=next or "/")
+    )
+
+@app.post("/auth/admin/login", response_model=Token)
+async def admin_login(
+    response: Response,
+    login_data: LoginRequest,
+    db: Session = Depends(get_db)
+):
+    """
+    Autentica administrador e retorna token JWT.
+    Verifica se o usuário possui flag admin=True.
+    """
+    # Autentica usuário
+    user = authenticate_user(db, login_data.email, login_data.password)
+    if not user:
+        raise HTTPException(
+            status_code=401,
+            detail="Credenciais inválidas"
+        )
+    
+    if not user.ativo:
+        raise HTTPException(
+            status_code=403,
+            detail="Usuário inativo"
+        )
+    
+    # Verificar se é admin
+    if not user.admin:
+        raise HTTPException(
+            status_code=403,
+            detail="Acesso restrito a administradores"
+        )
+    
+    # Cria token de acesso com id e email
+    access_token = create_access_token(data={"sub": str(user.id), "email": user.email})
+    
+    # Define cookie com o token (httponly para segurança)
+    cookie_params = {
+        "key": "access_token",
+        "value": access_token,
+        "httponly": True,
+        "secure": os.getenv("HTTPS_ENABLED", "false").lower() == "true",
+        "samesite": "lax",
+        "max_age": ACCESS_TOKEN_EXPIRE_MINUTES * 60
+    }
+    response.set_cookie(**cookie_params)
+    
+    # Atualizar último acesso
+    user.ultimo_acesso = datetime.utcnow()
+    db.commit()
+    
+    return Token(
+        access_token=access_token,
+        token_type="bearer",
+        user=UserOut.from_orm(user)
+    )
+
+# ======================
+# ADMIN: Páginas e APIs
+# ======================
+
+@app.get("/admin")
+async def admin_home(
+    _ip_ok: bool = Depends(ensure_admin_ip_allowed),
+    current_user: User = Depends(get_current_admin_user),
+):
+    return RedirectResponse(url="/admin/clientes", status_code=302)
+
+class AdminClienteOut(BaseModel):
+    id: int
+    nome: str
+    email: str
+    primeiro_acesso: Optional[datetime]
+    tipo_servico: Optional[str]
+    inicio_contrato: Optional[date]
+    validade_contrato: Optional[date]
+    fim_contrato: Optional[date]
+    inativo_dias: Optional[int]
+    assinatura_status: Optional[str]
+
+    class Config:
+        from_attributes = True
+
+class AdminClientesResponse(BaseModel):
+    items: List[AdminClienteOut]
+    total: int
+    page: int
+    page_size: int
+    total_pages: int
+    counts_by_status: Dict[str, int]
+
+@app.get("/admin/clientes")
+async def admin_clientes_page(
+    request: Request,
+    _ip_ok: bool = Depends(ensure_admin_ip_allowed),
+    current_user: User = Depends(get_current_admin_user),
+):
+    return templates.TemplateResponse(
+        "admin_clientes.html",
+        get_template_context(request)
+    )
+
+@app.get("/api/admin/clientes", response_model=AdminClientesResponse)
+async def api_admin_clientes(
+    only_active: bool = True,
+    q: Optional[str] = None,
+    status: Optional[str] = None,  # trial | ativa | inadimplente | cancelada | sem
+    order_by: str = "nome",
+    order_dir: str = "asc",  # asc | desc
+    page: int = 1,
+    page_size: int = 20,
+    db: Session = Depends(get_db),
+    _ip_ok: bool = Depends(ensure_admin_ip_allowed),
+    current_user: User = Depends(get_current_admin_user)
+):
+    # Bounds
+    if page < 1:
+        page = 1
+    page_size = max(1, min(100, page_size))
+
+    users = list_users(db, skip=0, limit=5000, only_active=only_active)
+
+    # Carregar assinaturas em lote
+    user_ids = [u.id for u in users]
+    assinaturas_map: Dict[int, Assinatura] = {}
+    if user_ids:
+        subs = db.query(Assinatura).filter(Assinatura.usuario_id.in_(user_ids)).all()
+        assinaturas_map = {s.usuario_id: s for s in subs}
+
+    out: List[AdminClienteOut] = []
+    today = datetime.utcnow().date()
+    for u in users:
+        sub = assinaturas_map.get(u.id)
+        ultimo = u.ultimo_acesso.date() if u.ultimo_acesso else None
+        base_inativo = ultimo or (u.created_at.date() if u.created_at else None)
+        inativo_dias = (today - base_inativo).days if base_inativo else None
+
+        out.append(AdminClienteOut(
+            id=u.id,
+            nome=u.nome,
+            email=u.email,
+            primeiro_acesso=u.created_at,
+            tipo_servico=None,
+            inicio_contrato=sub.data_inicio if sub else None,
+            validade_contrato=sub.proximo_vencimento if sub else None,
+            fim_contrato=sub.cancelada_em if (sub and sub.cancelada_em) else None,
+            inativo_dias=inativo_dias,
+            assinatura_status=sub.status if sub else None,
+        ))
+
+    # Filtro por busca
+    if q:
+        ql = q.lower().strip()
+        out = [c for c in out if (c.nome or '').lower().find(ql) >= 0 or (c.email or '').lower().find(ql) >= 0]
+
+    # Filtro por status de assinatura
+    if status:
+        st = status.lower()
+        if st == "sem":
+            out = [c for c in out if not c.assinatura_status]
+        else:
+            out = [c for c in out if (c.assinatura_status or '').lower() == st]
+
+    # Contagem por status (antes de paginar)
+    counts: Dict[str, int] = {"trial":0, "ativa":0, "inadimplente":0, "cancelada":0, "sem":0}
+    for c in out:
+        key = (c.assinatura_status or 'sem').lower()
+        if key not in counts:
+            counts[key] = 0
+        counts[key] += 1
+
+    # Ordenação
+    valid_fields = {
+        "nome": lambda c: (c.nome or "").lower(),
+        "email": lambda c: (c.email or "").lower(),
+        "primeiro_acesso": lambda c: c.primeiro_acesso or datetime.min,
+        "inicio_contrato": lambda c: c.inicio_contrato or date.min,
+        "validade_contrato": lambda c: c.validade_contrato or date.min,
+        "fim_contrato": lambda c: c.fim_contrato or date.min,
+        "inativo_dias": lambda c: c.inativo_dias if c.inativo_dias is not None else 10**9,
+        "assinatura_status": lambda c: (c.assinatura_status or "zzzz")
+    }
+    key_fn = valid_fields.get(order_by, valid_fields["nome"])
+    reverse = (order_dir.lower() == "desc")
+    out.sort(key=key_fn, reverse=reverse)
+
+    # Paginação
+    total = len(out)
+    total_pages = (total + page_size - 1) // page_size if total else 1
+    start = (page - 1) * page_size
+    end = start + page_size
+    items = out[start:end]
+
+    return AdminClientesResponse(
+        items=items,
+        total=total,
+        page=page,
+        page_size=page_size,
+        total_pages=total_pages,
+        counts_by_status=counts,
+    )
 
 # Página de Registro
 @app.get("/register")

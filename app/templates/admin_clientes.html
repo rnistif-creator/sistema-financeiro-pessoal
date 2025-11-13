@@ -1,0 +1,203 @@
+<!doctype html>
+<html lang="pt-br">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Admin • Clientes</title>
+  <style>
+    :root {
+      --bg: #0f172a;
+      --card: #1e293b;
+      --muted: #94a3b8;
+      --text: #e5e7eb;
+      --primary: #22d3ee; /* teal admin */
+      --primary-strong: #06b6d4;
+      --danger: #ef4444;
+      --success: #22c55e;
+      --warning: #f59e0b;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { background: var(--bg); color: var(--text); font-family: Inter, system-ui, sans-serif; line-height: 1.6; padding: 24px; }
+    .container { max-width: 1300px; margin: 0 auto; }
+    .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; gap: 12px; flex-wrap: wrap; }
+    .title { font-size: 26px; font-weight: 800; letter-spacing: .2px; }
+    .brand-wrap{ display:flex; align-items:center; gap:12px; }
+    .brand-wrap img{ height: 36px; width: auto; filter: drop-shadow(0 2px 6px rgba(0,0,0,0.3)); }
+    .toolbar { display:flex; gap:10px; align-items:center; flex-wrap:wrap; }
+    .toolbar input[type="search"]{ padding:10px 12px; border-radius:10px; border:1px solid rgba(148,163,184,0.25); background:rgba(15,23,42,0.55); color:var(--text); min-width:260px; }
+    .toolbar select{ padding:10px 12px; border-radius:10px; border:1px solid rgba(148,163,184,0.25); background:rgba(15,23,42,0.55); color:var(--text); }
+    .card { background: var(--card); border: 1px solid rgba(148,163,184,0.12); border-radius: 12px; }
+    .table-wrap { overflow:auto; }
+    table { width: 100%; border-collapse: collapse; }
+    thead th { text-align: left; font-size: 12px; text-transform: uppercase; letter-spacing: .6px; color: var(--muted); padding: 14px 12px; border-bottom: 1px solid rgba(148,163,184,0.12); position: sticky; top: 0; background: var(--card); cursor: pointer; user-select: none; }
+    tbody td { padding: 12px; border-bottom: 1px solid rgba(148,163,184,0.08); font-size: 14px; }
+    tbody tr:hover { background: rgba(148,163,184,0.06); }
+    .badge { display:inline-flex; align-items:center; gap:6px; font-size:12px; padding:4px 8px; border-radius:999px; border:1px solid rgba(148,163,184,0.25); }
+    .status-trial { border-color:#06b6d4; color:#06b6d4; }
+    .status-ativa { border-color:#22c55e; color:#22c55e; }
+    .status-inadimplente { border-color:#ef4444; color:#ef4444; }
+    .status-cancelada { border-color:#9ca3af; color:#9ca3af; }
+    .muted { color: var(--muted); }
+  </style>
+</head>
+<body>
+  {% include '_admin_sidebar.html' %}
+  <div class="container" id="main-content">
+    <div class="header">
+      <h1 class="title brand-wrap">
+          <img data-brand-logo src="{{ brand_logo_url }}" alt="DOMO360" class="h-6 w-6" />
+        <span>Clientes</span>
+      </h1>
+      <div class="toolbar">
+        <input id="clienteSearch" type="search" placeholder="Pesquisar por nome ou e-mail" aria-label="Pesquisar clientes">
+        <select id="statusFilter" aria-label="Filtrar por status">
+          <option value="">Todos os status</option>
+          <option value="trial">Trial</option>
+          <option value="ativa">Ativa</option>
+          <option value="inadimplente">Inadimplente</option>
+          <option value="cancelada">Cancelada</option>
+          <option value="sem">Sem assinatura</option>
+        </select>
+      </div>
+    </div>
+    <div class="card">
+      <div class="table-wrap">
+        <table aria-describedby="descClientes">
+          <caption id="descClientes" class="muted" style="text-align:left; padding:12px;">Lista de clientes cadastrados no sistema</caption>
+          <thead>
+            <tr>
+              <th data-sort="nome">Nome</th>
+              <th data-sort="email">E-mail</th>
+              <th data-sort="primeiro_acesso">Primeiro acesso</th>
+              <th data-sort="assinatura_status">Tipo de serviço</th>
+              <th data-sort="inicio_contrato">Início contrato</th>
+              <th data-sort="validade_contrato">Validade</th>
+              <th data-sort="fim_contrato">Fim contrato</th>
+              <th data-sort="inativo_dias">Inativo (dias)</th>
+            </tr>
+          </thead>
+          <tbody id="tbodyClientes">
+            <tr><td colspan="8" class="muted" style="padding:16px;">Carregando...</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div id="paginator" style="display:flex; align-items:center; justify-content:space-between; padding:12px; gap:12px;">
+        <div id="statusCounts" class="muted" style="font-size:12px;"></div>
+        <div style="display:flex; align-items:center; gap:8px;">
+          <button id="btnPrev" class="btn" style="padding:8px 12px; border-radius:8px; border:1px solid rgba(148,163,184,0.25); background:rgba(15,23,42,0.55); color:var(--text); cursor:pointer;">← Anterior</button>
+          <span id="pageInfo" class="muted" style="font-size:12px;">Página 1/1</span>
+          <button id="btnNext" class="btn" style="padding:8px 12px; border-radius:8px; border:1px solid rgba(148,163,184,0.25); background:rgba(15,23,42,0.55); color:var(--text); cursor:pointer;">Próxima →</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script{% if csp_nonce %} nonce="{{ csp_nonce }}"{% endif %}>
+    const tbody = document.getElementById('tbodyClientes');
+    const search = document.getElementById('clienteSearch');
+    const statusFilter = document.getElementById('statusFilter');
+      // Garantir logo com fallback caso domo360-logo.png não exista
+      (function(){
+        const img = document.querySelector('img[data-brand-logo]');
+        if(img){
+          img.addEventListener('error', ()=>{ img.src = '/static/icons/icon-192x192.png'; });
+        }
+      })();
+    const btnPrev = document.getElementById('btnPrev');
+    const btnNext = document.getElementById('btnNext');
+    const pageInfo = document.getElementById('pageInfo');
+    const statusCounts = document.getElementById('statusCounts');
+
+    let state = {
+      q: '',
+      status: '',
+      order_by: 'nome',
+      order_dir: 'asc',
+      page: 1,
+      page_size: 20
+    };
+
+    function fmtDate(d){ if(!d) return '—'; try{ const dt=new Date(d); return dt.toLocaleDateString('pt-BR'); }catch(_){ return '—'; } }
+    function fmtSvc(s){ return s || '—'; }
+    function statusClass(st){ return st ? `status-${st}`: '' }
+
+    function render(resp){
+      const list = (resp && resp.items) ? resp.items : [];
+      if(!list.length){
+        tbody.innerHTML = `<tr><td colspan="8" class="muted" style="padding:16px;">Nenhum cliente encontrado</td></tr>`;
+      } else {
+        tbody.innerHTML = list.map(c => `
+          <tr>
+            <td>${c.nome}</td>
+            <td>${c.email}</td>
+            <td>${fmtDate(c.primeiro_acesso)}</td>
+            <td><span class="badge ${statusClass(c.assinatura_status)}">${fmtSvc(c.tipo_servico)}</span></td>
+            <td>${fmtDate(c.inicio_contrato)}</td>
+            <td>${fmtDate(c.validade_contrato)}</td>
+            <td>${fmtDate(c.fim_contrato)}</td>
+            <td>${c.inativo_dias ?? '—'}</td>
+          </tr>
+        `).join('');
+      }
+      // Paginator
+      pageInfo.textContent = `Página ${resp.page}/${resp.total_pages} • ${resp.total} itens`;
+      btnPrev.disabled = resp.page <= 1;
+      btnNext.disabled = resp.page >= resp.total_pages;
+      // Counts
+      const c = resp.counts_by_status || {};
+      statusCounts.textContent = `Trial: ${c.trial||0} • Ativa: ${c.ativa||0} • Inadimplente: ${c.inadimplente||0} • Cancelada: ${c.cancelada||0} • Sem: ${c.sem||0}`;
+      // Highlight sort
+      document.querySelectorAll('thead th[data-sort]').forEach(th => {
+        const key = th.getAttribute('data-sort');
+        th.style.color = key === state.order_by ? 'var(--text)' : 'var(--muted)';
+        th.textContent = th.textContent.replace(/\s+[↑↓]$/, '');
+        if(key === state.order_by){ th.textContent = th.textContent + (state.order_dir === 'asc' ? ' ↑' : ' ↓'); }
+      });
+    }
+
+    async function carregar(){
+      const params = new URLSearchParams();
+      if(state.q) params.set('q', state.q);
+      if(state.status) params.set('status', state.status);
+      params.set('order_by', state.order_by);
+      params.set('order_dir', state.order_dir);
+      params.set('page', String(state.page));
+      params.set('page_size', String(state.page_size));
+      try{
+        const res = await fetch(`/api/admin/clientes?${params.toString()}`);
+        if(!res.ok) throw new Error('Falha ao carregar');
+        const data = await res.json();
+        render(data);
+      }catch(e){
+        tbody.innerHTML = `<tr><td colspan="8" class="muted" style="padding:16px; color:#ef4444;">Erro ao carregar clientes</td></tr>`;
+        pageInfo.textContent = '—';
+      }
+    }
+
+    // Listeners
+    search.addEventListener('input', () => {
+      state.q = search.value.trim();
+      state.page = 1;
+      carregar();
+    });
+    statusFilter.addEventListener('change', () => {
+      state.status = statusFilter.value;
+      state.page = 1;
+      carregar();
+    });
+    document.querySelectorAll('thead th[data-sort]').forEach(th => {
+      th.addEventListener('click', () => {
+        const key = th.getAttribute('data-sort');
+        if(state.order_by === key){ state.order_dir = state.order_dir === 'asc' ? 'desc' : 'asc'; }
+        else { state.order_by = key; state.order_dir = 'asc'; }
+        state.page = 1;
+        carregar();
+      });
+    });
+    btnPrev.addEventListener('click', ()=>{ if(state.page>1){ state.page--; carregar(); }});
+    btnNext.addEventListener('click', ()=>{ state.page++; carregar(); });
+
+    document.addEventListener('DOMContentLoaded', carregar);
+  </script>
+</body>
+</html>
