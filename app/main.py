@@ -1431,6 +1431,14 @@ async def login_page(request: Request, next: Optional[str] = "/"):
         get_template_context(request, next=next or "/")
     )
 
+# Página de Registro
+@app.get("/register")
+async def register_page(request: Request):
+    return templates.TemplateResponse(
+        "register.html",
+        get_template_context(request)
+    )
+
 # ======================
 # ENDPOINTS DE FORMAS DE PAGAMENTO
 # ======================
