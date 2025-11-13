@@ -47,15 +47,21 @@
       
       <button id="btn-register" type="submit">Criar conta</button>
     </form>
-    <button class="secondary" type="button" onclick="window.location.href='/login'">Já tenho conta</button>
+    <button class="secondary" type="button" id="btn-login">Já tenho conta</button>
     <div class="footer">Ao criar uma conta, você concorda com os termos de uso.</div>
   </div>
 
   <script{%- if csp_nonce %} nonce="{{ csp_nonce }}"{%- endif %}>
     const form = document.getElementById('form-register');
     const btn = document.getElementById('btn-register');
+    const btnLogin = document.getElementById('btn-login');
     const error = document.getElementById('error');
     const success = document.getElementById('success');
+
+    // Botão de voltar para login
+    btnLogin.addEventListener('click', () => {
+      window.location.href = '/login';
+    });
 
     form.addEventListener('submit', async (e) => {
       e.preventDefault();
