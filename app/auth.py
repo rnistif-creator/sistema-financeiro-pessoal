@@ -4,7 +4,7 @@ Gerencia usuários, passwords, tokens JWT e sessões
 """
 from datetime import datetime, timedelta
 from typing import Optional
-from passlib.context import CryptContext
+import bcrypt
 from jose import JWTError, jwt
 from pydantic import BaseModel, EmailStr, Field
 from sqlalchemy import Column, Integer, String, DateTime, Boolean
@@ -22,9 +22,6 @@ if ENVIRONMENT == "production" and not _ENV_SECRET:
 SECRET_KEY = _ENV_SECRET or secrets.token_urlsafe(32)
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 60 * 24 * 7  # 7 dias
-
-# Context para hash de senha (bcrypt)
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
 # ============================================================================
 # MODELOS PYDANTIC
@@ -71,15 +68,21 @@ class LoginRequest(BaseModel):
 
 def verify_password(plain_password: str, hashed_password: str) -> bool:
     """Verifica se a senha corresponde ao hash"""
-    # Bcrypt tem limite de 72 bytes - truncar em bytes, não caracteres
-    password_bytes = plain_password.encode('utf-8')[:72].decode('utf-8', errors='ignore')
-    return pwd_context.verify(password_bytes, hashed_password)
+    # Bcrypt trabalha com bytes
+    password_bytes = plain_password.encode('utf-8')
+    # hashed_password pode ser string ou bytes
+    if isinstance(hashed_password, str):
+        hashed_password = hashed_password.encode('utf-8')
+    return bcrypt.checkpw(password_bytes, hashed_password)
 
 def get_password_hash(password: str) -> str:
     """Gera hash bcrypt da senha"""
-    # Bcrypt tem limite de 72 bytes - truncar em bytes, não caracteres
-    password_bytes = password.encode('utf-8')[:72].decode('utf-8', errors='ignore')
-    return pwd_context.hash(password_bytes)
+    # Bcrypt trabalha com bytes e retorna bytes
+    password_bytes = password.encode('utf-8')
+    salt = bcrypt.gensalt()
+    hashed = bcrypt.hashpw(password_bytes, salt)
+    # Retornar como string para armazenar no banco
+    return hashed.decode('utf-8')
 
 def validate_password_strength(password: str) -> bool:
     """Valida força mínima da senha: >=8, maiúscula, minúscula, dígito, símbolo"""
