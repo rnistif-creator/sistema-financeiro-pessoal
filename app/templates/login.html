@@ -19,15 +19,6 @@
     .error { color: #fecaca; background: rgba(239,68,68,0.12); border: 1px solid rgba(239,68,68,0.25); padding: 10px; border-radius: 8px; margin-bottom: 10px; display: none; }
     .success { color: #86efac; background: rgba(34,197,94,0.12); border: 1px solid rgba(34,197,94,0.25); padding: 10px; border-radius: 8px; margin-bottom: 10px; display: none; }
     .footer { margin-top: 16px; font-size: 12px; color: #64748b; text-align: center; }
-    .footer a { color: #22d3ee; text-decoration: none; font-weight: 600; }
-    .footer a:hover { text-decoration: underline; }
-    .modal-backdrop { position: fixed; inset: 0; background: rgba(2,6,23,0.7); display: none; align-items: center; justify-content: center; z-index: 50; }
-    .modal { width: 100%; max-width: 520px; background: rgba(15, 23, 42, 0.95); border: 1px solid rgba(255,255,255,0.08); border-radius: 16px; padding: 20px; box-shadow: 0 20px 40px rgba(0,0,0,0.4); }
-    .modal h3 { margin: 0 0 12px; font-size: 18px; color: #22d3ee; }
-    .modal .actions { display: flex; gap: 10px; justify-content: flex-end; margin-top: 12px; }
-    .modal textarea { width: 100%; min-height: 120px; padding: 12px; border-radius: 10px; border: 1px solid rgba(148,163,184,0.2); background: rgba(2,6,23,0.6); color: #e2e8f0; resize: vertical; }
-    .modal .row { display: grid; grid-template-columns: 1fr; gap: 10px; }
-    .modal .row.two { grid-template-columns: 1fr 1fr; }
     .divider { margin: 16px 0; text-align: center; color: #64748b; font-size: 12px; position: relative; }
     .divider::before, .divider::after { content: ''; position: absolute; top: 50%; width: 40%; height: 1px; background: rgba(148,163,184,0.2); }
     .divider::before { left: 0; }
@@ -36,8 +27,8 @@
 </head>
 <body>
   <div class="card">
-    <h1>Seja bem-vindo ao sistema de controle financeiro - DOMO360</h1>
-    <p>Acesse seu painel para gerenciar receitas, despesas e metas.</p>
+    <h1>Bem-vindo de volta</h1>
+    <p>Entre para acessar seu painel financeiro.</p>
     <div id="success" class="success" role="alert"></div>
     <div id="error" class="error" role="alert"></div>
     <form id="form-login">
@@ -49,44 +40,7 @@
     </form>
     <div class="divider">ou</div>
     <button class="secondary" type="button" id="btn-register">Criar nova conta</button>
-    <div class="footer">Problemas para entrar? <a href="#" id="link-suporte">Fale com o administrador</a>.</div>
-  </div>
-
-  <div id="modalSuporte" class="modal-backdrop" role="dialog" aria-modal="true" aria-hidden="true">
-    <div class="modal">
-      <h3>Contato com o Administrador</h3>
-      <p style="margin:0 0 12px; color:#94a3b8; font-size:14px;">Preencha os campos abaixo para relatar um problema. Sua mensagem será enviada para contato@rfinance.com.br.</p>
-      <form id="formSuporte">
-        <div class="row two">
-          <div>
-            <label for="suporteNome">Nome</label>
-            <input id="suporteNome" name="nome" type="text" required placeholder="Seu nome" />
-          </div>
-          <div>
-            <label for="suporteEmail">Email (opcional)</label>
-            <input id="suporteEmail" name="email" type="email" placeholder="voce@exemplo.com" />
-          </div>
-        </div>
-        <div class="row">
-          <div>
-            <label for="suporteAssunto">Assunto</label>
-            <input id="suporteAssunto" name="assunto" type="text" required placeholder="Ex.: Não consigo acessar" />
-          </div>
-        </div>
-        <div class="row">
-          <div>
-            <label for="suporteDescricao">Descrição</label>
-            <textarea id="suporteDescricao" name="descricao" required placeholder="Descreva o problema com detalhes"></textarea>
-          </div>
-        </div>
-        <div id="suporteErro" class="error" role="alert" style="display:none"></div>
-        <div id="suporteOk" class="success" role="status" style="display:none"></div>
-        <div class="actions">
-          <button type="button" class="secondary" id="btnCancelarSuporte">Cancelar</button>
-          <button type="submit" id="btnEnviarSuporte">Enviar</button>
-        </div>
-      </form>
-    </div>
+    <div class="footer">Problemas para entrar? Fale com o administrador.</div>
   </div>
 
   <script{%- if csp_nonce %} nonce="{{ csp_nonce }}"{%- endif %}>
@@ -98,13 +52,6 @@
     const btnRegister = document.getElementById('btn-register');
     const error = document.getElementById('error');
     const success = document.getElementById('success');
-    const modalSuporte = document.getElementById('modalSuporte');
-    const linkSuporte = document.getElementById('link-suporte');
-    const formSuporte = document.getElementById('formSuporte');
-    const btnCancelarSuporte = document.getElementById('btnCancelarSuporte');
-    const btnEnviarSuporte = document.getElementById('btnEnviarSuporte');
-    const suporteErro = document.getElementById('suporteErro');
-    const suporteOk = document.getElementById('suporteOk');
 
     // Botão de criar nova conta
     btnRegister.addEventListener('click', () => {
@@ -144,40 +91,6 @@
         error.style.display = 'block';
       } finally {
         btn.disabled = false; btn.textContent = 'Entrar';
-      }
-    });
-
-    function abrirModalSuporte(){ modalSuporte.style.display = 'flex'; modalSuporte.setAttribute('aria-hidden','false'); }
-    function fecharModalSuporte(){ modalSuporte.style.display = 'none'; modalSuporte.setAttribute('aria-hidden','true'); suporteErro.style.display='none'; suporteOk.style.display='none'; formSuporte.reset(); }
-    linkSuporte.addEventListener('click', (e)=>{ e.preventDefault(); abrirModalSuporte(); });
-    btnCancelarSuporte.addEventListener('click', fecharModalSuporte);
-
-    formSuporte.addEventListener('submit', async (e)=>{
-      e.preventDefault();
-      suporteErro.style.display='none'; suporteOk.style.display='none';
-      btnEnviarSuporte.disabled = true; btnEnviarSuporte.textContent = 'Enviando...';
-      try{
-        const nome = document.getElementById('suporteNome').value.trim();
-        const email = document.getElementById('suporteEmail').value.trim();
-        const assunto = document.getElementById('suporteAssunto').value.trim();
-        const descricao = document.getElementById('suporteDescricao').value.trim();
-        const resp = await fetch('/api/suporte/contato', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ nome, email: email || null, assunto, descricao })
-        });
-        if(!resp.ok){
-          const data = await resp.json().catch(()=>({ detail: 'Falha ao enviar mensagem' }));
-          throw new Error(data.detail || 'Falha ao enviar mensagem');
-        }
-        suporteOk.textContent = '✅ Mensagem enviada! Retornaremos em breve.';
-        suporteOk.style.display = 'block';
-        setTimeout(()=>{ fecharModalSuporte(); }, 1200);
-      } catch(err){
-        suporteErro.textContent = err.message || 'Erro ao enviar mensagem';
-        suporteErro.style.display = 'block';
-      } finally {
-        btnEnviarSuporte.disabled = false; btnEnviarSuporte.textContent = 'Enviar';
       }
     });
   </script>

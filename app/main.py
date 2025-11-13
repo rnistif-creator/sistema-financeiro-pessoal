@@ -5,9 +5,6 @@ from fastapi.templating import Jinja2Templates
 from fastapi.responses import JSONResponse, FileResponse, StreamingResponse, RedirectResponse
 from pydantic import BaseModel, Field, ValidationError
 from typing import Optional, List, Dict, Any
-import smtplib
-import ssl
-from email.message import EmailMessage
 from sqlalchemy import Column, Integer, String, Date, Numeric, DateTime, Boolean, create_engine, func
 from sqlalchemy.orm import sessionmaker, DeclarativeBase, Session
 import os
@@ -37,7 +34,6 @@ BASE_DIR = Path(__file__).resolve().parent
 TEMPLATES_DIR = BASE_DIR / "templates"
 STATIC_DIR = BASE_DIR / "static"
 BACKUP_DIR = BASE_DIR.parent / "backups"
-DATA_DIR = BASE_DIR.parent / "data"
 
 DB_PATH = os.getenv("DB_PATH", "lancamentos.db")
 # Permitir uso de DATABASE_URL (ex.: PostgreSQL) com fallback para SQLite local
@@ -45,7 +41,6 @@ DATABASE_URL = os.getenv("DATABASE_URL") or f"sqlite:///{DB_PATH}"
 
 # Criar diretórios necessários se não existirem
 BACKUP_DIR.mkdir(exist_ok=True)
-DATA_DIR.mkdir(exist_ok=True)
 
 # Garantir que o diretório do banco de dados SQLite existe
 if not DATABASE_URL.startswith("postgresql") and not DATABASE_URL.startswith("mysql"):
@@ -1443,92 +1438,6 @@ async def login_page(request: Request, next: Optional[str] = "/"):
         "login.html",
         get_template_context(request, next=next or "/")
     )
-
-# ======================
-# SUPORTE (Contato não autenticado)
-# ======================
-
-class SupportMessageIn(BaseModel):
-    nome: str = Field(..., min_length=2, max_length=100)
-    assunto: str = Field(..., min_length=3, max_length=150)
-    descricao: str = Field(..., min_length=5, max_length=5000)
-    email: Optional[str] = Field(default=None, max_length=255)
-
-def _send_support_email(subject: str, body: str, reply_to: Optional[str] = None) -> bool:
-    host = os.getenv("SMTP_HOST")
-    sender = os.getenv("SMTP_FROM")
-    if not host or not sender:
-        return False
-    port = int(os.getenv("SMTP_PORT", "587"))
-    user = os.getenv("SMTP_USER")
-    password = os.getenv("SMTP_PASSWORD")
-    to_address = "contato@rfinance.com.br"
-
-    msg = EmailMessage()
-    msg["From"] = sender
-    msg["To"] = to_address
-    msg["Subject"] = subject
-    if reply_to:
-        msg["Reply-To"] = reply_to
-    msg.set_content(body)
-
-    try:
-        context = ssl.create_default_context()
-        with smtplib.SMTP(host, port, timeout=20) as server:
-            try:
-                server.starttls(context=context)
-            except Exception:
-                pass
-            if user and password:
-                server.login(user, password)
-            server.send_message(msg)
-        return True
-    except Exception as e:
-        print(f"Falha ao enviar email de suporte: {e}")
-        return False
-
-@app.post("/api/suporte/contato")
-async def suporte_contato(msg: SupportMessageIn, request: Request):
-    agora = datetime.utcnow().isoformat()
-    client_ip = getattr(request.client, "host", None)
-    user_agent = request.headers.get("user-agent", "")
-    subject = f"[DOMO360] Suporte - {msg.assunto}"
-    body = (
-        f"Nome: {msg.nome}\n"
-        f"Email: {msg.email or '-'}\n"
-        f"IP: {client_ip or '-'}\n"
-        f"User-Agent: {user_agent}\n"
-        f"Data (UTC): {agora}\n\n"
-        f"Descrição:\n{msg.descricao}\n"
-    )
-
-    sent = _send_support_email(subject, body, reply_to=msg.email or None)
-
-    # Registrar em arquivo para auditoria/retentativa
-    try:
-        log_path = DATA_DIR / "support_messages.jsonl"
-        with open(log_path, "a", encoding="utf-8") as f:
-            record = {
-                "timestamp": agora,
-                "nome": msg.nome,
-                "email": msg.email,
-                "assunto": msg.assunto,
-                "descricao": msg.descricao,
-                "client_ip": client_ip,
-                "user_agent": user_agent,
-                "email_sent": sent,
-            }
-            f.write(json.dumps(record, ensure_ascii=False) + "\n")
-    except Exception as e:
-        print(f"Falha ao registrar mensagem de suporte: {e}")
-
-    if sent:
-        return {"status": "ok"}
-    else:
-        return JSONResponse(status_code=202, content={
-            "status": "accepted",
-            "detail": "Mensagem registrada. Envio de e-mail não configurado.",
-        })
 
 # Página de Registro
 @app.get("/register")
