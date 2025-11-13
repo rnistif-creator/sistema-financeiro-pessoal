@@ -233,7 +233,7 @@
         const resp = await fetch('/auth/register', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ nome, email, senha })
+          body: JSON.stringify({ nome, email, password: senha })
         });
 
         // Tentar fazer parse do JSON
