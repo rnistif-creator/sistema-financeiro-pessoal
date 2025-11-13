@@ -20,6 +20,21 @@
     .error { color: #fecaca; background: rgba(239,68,68,0.12); border: 1px solid rgba(239,68,68,0.25); padding: 10px; border-radius: 8px; margin-bottom: 10px; display: none; font-size: 13px; }
     .success { color: #86efac; background: rgba(34,197,94,0.12); border: 1px solid rgba(34,197,94,0.25); padding: 10px; border-radius: 8px; margin-bottom: 10px; display: none; font-size: 13px; }
     .hint { font-size: 12px; color: #64748b; margin-top: 4px; }
+    .input-wrapper { position: relative; }
+    .toggle-password { position: absolute; right: 12px; top: 50%; transform: translateY(-50%); background: none; border: none; color: #94a3b8; cursor: pointer; padding: 4px; font-size: 18px; width: auto; margin: 0; box-shadow: none; }
+    .toggle-password:hover { color: #cbd5e1; }
+    .password-strength { margin-top: 8px; font-size: 12px; padding: 6px 10px; border-radius: 6px; display: none; }
+    .password-strength.weak { background: rgba(239,68,68,0.12); border: 1px solid rgba(239,68,68,0.25); color: #fecaca; }
+    .password-strength.medium { background: rgba(251,191,36,0.12); border: 1px solid rgba(251,191,36,0.25); color: #fde68a; }
+    .password-strength.strong { background: rgba(34,197,94,0.12); border: 1px solid rgba(34,197,94,0.25); color: #86efac; }
+    .requirements { margin-top: 8px; font-size: 12px; }
+    .requirement { color: #64748b; margin: 4px 0; display: flex; align-items: center; gap: 6px; }
+    .requirement.met { color: #86efac; }
+    .requirement.met::before { content: '✓'; }
+    .requirement:not(.met)::before { content: '○'; }
+    .match-indicator { margin-top: 4px; font-size: 12px; display: none; }
+    .match-indicator.match { color: #86efac; }
+    .match-indicator.no-match { color: #fecaca; }
     .footer { margin-top: 16px; font-size: 12px; color: #64748b; text-align: center; }
     .footer a { color: #22d3ee; text-decoration: none; }
     .footer a:hover { text-decoration: underline; }
@@ -39,11 +54,25 @@
       <input id="email" name="email" type="email" required autocomplete="email" placeholder="voce@exemplo.com" />
       
       <label for="senha">Senha</label>
-      <input id="senha" name="senha" type="password" required autocomplete="new-password" placeholder="••••••••" minlength="8" />
-      <div class="hint">Mínimo 8 caracteres, incluindo letra maiúscula, minúscula, número e caractere especial</div>
+      <div class="input-wrapper">
+        <input id="senha" name="senha" type="password" required autocomplete="new-password" placeholder="••••••••" minlength="8" style="padding-right: 45px;" />
+        <button type="button" class="toggle-password" id="toggle-senha" aria-label="Mostrar senha">👁️</button>
+      </div>
+      <div class="requirements">
+        <div class="requirement" id="req-length">Mínimo 8 caracteres</div>
+        <div class="requirement" id="req-upper">Letra maiúscula</div>
+        <div class="requirement" id="req-lower">Letra minúscula</div>
+        <div class="requirement" id="req-number">Número</div>
+        <div class="requirement" id="req-special">Caractere especial (!@#$%...)</div>
+      </div>
+      <div class="password-strength" id="strength"></div>
       
       <label for="senha_confirm">Confirmar senha</label>
-      <input id="senha_confirm" name="senha_confirm" type="password" required autocomplete="new-password" placeholder="••••••••" />
+      <div class="input-wrapper">
+        <input id="senha_confirm" name="senha_confirm" type="password" required autocomplete="new-password" placeholder="••••••••" style="padding-right: 45px;" />
+        <button type="button" class="toggle-password" id="toggle-confirm" aria-label="Mostrar senha">👁️</button>
+      </div>
+      <div class="match-indicator" id="match-indicator"></div>
       
       <button id="btn-register" type="submit">Criar conta</button>
     </form>
@@ -57,6 +86,99 @@
     const btnLogin = document.getElementById('btn-login');
     const error = document.getElementById('error');
     const success = document.getElementById('success');
+    const senhaInput = document.getElementById('senha');
+    const senhaConfirmInput = document.getElementById('senha_confirm');
+    const toggleSenha = document.getElementById('toggle-senha');
+    const toggleConfirm = document.getElementById('toggle-confirm');
+    const strengthDiv = document.getElementById('strength');
+    const matchIndicator = document.getElementById('match-indicator');
+
+    // Toggle visibilidade da senha
+    toggleSenha.addEventListener('click', () => {
+      const type = senhaInput.type === 'password' ? 'text' : 'password';
+      senhaInput.type = type;
+      toggleSenha.textContent = type === 'password' ? '👁️' : '🙈';
+    });
+
+    toggleConfirm.addEventListener('click', () => {
+      const type = senhaConfirmInput.type === 'password' ? 'text' : 'password';
+      senhaConfirmInput.type = type;
+      toggleConfirm.textContent = type === 'password' ? '👁️' : '🙈';
+    });
+
+    // Validação em tempo real da senha
+    senhaInput.addEventListener('input', () => {
+      const senha = senhaInput.value;
+      
+      // Verificar requisitos
+      const hasLength = senha.length >= 8;
+      const hasUpper = /[A-Z]/.test(senha);
+      const hasLower = /[a-z]/.test(senha);
+      const hasNumber = /[0-9]/.test(senha);
+      const hasSpecial = /[!@#$%^&*(),.?":{}|<>]/.test(senha);
+
+      // Atualizar indicadores visuais
+      document.getElementById('req-length').classList.toggle('met', hasLength);
+      document.getElementById('req-upper').classList.toggle('met', hasUpper);
+      document.getElementById('req-lower').classList.toggle('met', hasLower);
+      document.getElementById('req-number').classList.toggle('met', hasNumber);
+      document.getElementById('req-special').classList.toggle('met', hasSpecial);
+
+      // Calcular força da senha
+      if (senha.length > 0) {
+        let strength = 0;
+        if (hasLength) strength++;
+        if (hasUpper) strength++;
+        if (hasLower) strength++;
+        if (hasNumber) strength++;
+        if (hasSpecial) strength++;
+
+        strengthDiv.style.display = 'block';
+        strengthDiv.classList.remove('weak', 'medium', 'strong');
+
+        if (strength <= 2) {
+          strengthDiv.classList.add('weak');
+          strengthDiv.textContent = '🔴 Senha fraca';
+        } else if (strength <= 4) {
+          strengthDiv.classList.add('medium');
+          strengthDiv.textContent = '🟡 Senha média';
+        } else {
+          strengthDiv.classList.add('strong');
+          strengthDiv.textContent = '🟢 Senha forte';
+        }
+      } else {
+        strengthDiv.style.display = 'none';
+      }
+
+      // Verificar match se confirmação já foi digitada
+      checkPasswordMatch();
+    });
+
+    // Validação em tempo real da confirmação
+    senhaConfirmInput.addEventListener('input', checkPasswordMatch);
+
+    function checkPasswordMatch() {
+      const senha = senhaInput.value;
+      const senhaConfirm = senhaConfirmInput.value;
+
+      if (senhaConfirm.length > 0) {
+        matchIndicator.style.display = 'block';
+        if (senha === senhaConfirm) {
+          matchIndicator.textContent = '✓ As senhas coincidem';
+          matchIndicator.classList.remove('no-match');
+          matchIndicator.classList.add('match');
+          senhaConfirmInput.style.borderColor = 'rgba(34,197,94,0.5)';
+        } else {
+          matchIndicator.textContent = '✗ As senhas não coincidem';
+          matchIndicator.classList.remove('match');
+          matchIndicator.classList.add('no-match');
+          senhaConfirmInput.style.borderColor = 'rgba(239,68,68,0.5)';
+        }
+      } else {
+        matchIndicator.style.display = 'none';
+        senhaConfirmInput.style.borderColor = 'rgba(148,163,184,0.2)';
+      }
+    }
 
     // Botão de voltar para login
     btnLogin.addEventListener('click', () => {
@@ -114,11 +236,15 @@
           body: JSON.stringify({ nome, email, senha })
         });
 
-        const data = await resp.json();
-
         if (!resp.ok) {
-          throw new Error(data.detail || 'Erro ao criar conta');
+          const data = await resp.json().catch(() => ({}));
+          const errorMsg = typeof data.detail === 'string' 
+            ? data.detail 
+            : (data.detail?.msg || 'Erro ao criar conta');
+          throw new Error(errorMsg);
         }
+
+        const data = await resp.json();
 
         success.textContent = '✅ Conta criada com sucesso! Redirecionando...';
         success.style.display = 'block';
@@ -133,18 +259,6 @@
         error.style.display = 'block';
         btn.disabled = false;
         btn.textContent = 'Criar conta';
-      }
-    });
-
-    // Validação em tempo real da confirmação de senha
-    document.getElementById('senha_confirm').addEventListener('input', (e) => {
-      const senha = document.getElementById('senha').value;
-      const senhaConfirm = e.target.value;
-      
-      if (senhaConfirm && senha !== senhaConfirm) {
-        e.target.style.borderColor = 'rgba(239,68,68,0.5)';
-      } else {
-        e.target.style.borderColor = 'rgba(148,163,184,0.2)';
       }
     });
   </script>
