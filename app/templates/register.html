@@ -12,7 +12,7 @@
     h1 { margin: 0 0 6px; font-size: 20px; color: #22d3ee; }
     p { margin: 0 0 18px; color: #94a3b8; font-size: 14px; }
     label { display: block; font-size: 13px; color: #cbd5e1; margin: 12px 0 6px; }
-    input { width: 100%; padding: 12px; border-radius: 10px; border: 1px solid rgba(148,163,184,0.2); background: rgba(2,6,23,0.6); color: #e2e8f0; box-sizing: border-box; }
+    input { width: 100%; padding: 12px; border-radius: 10px; border: 1px solid rgba(148,163,184,0.2); background: rgba(2,6,23,0.6); color: #e2e8f0; box-sizing: border-box; font-size: 14px; }
     button { width: 100%; margin-top: 18px; padding: 12px; border: none; border-radius: 10px; background: linear-gradient(135deg,#22d3ee,#06b6d4); color: white; font-weight: 600; cursor: pointer; box-shadow: 0 6px 20px rgba(34,211,238,0.3); }
     button:disabled { opacity: 0.6; cursor: not-allowed; }
     button.secondary { background: rgba(148,163,184,0.15); color: #cbd5e1; box-shadow: none; border: 1px solid rgba(148,163,184,0.25); margin-top: 8px; }
@@ -236,15 +236,21 @@
           body: JSON.stringify({ nome, email, senha })
         });
 
-        if (!resp.ok) {
-          const data = await resp.json().catch(() => ({}));
-          const errorMsg = typeof data.detail === 'string' 
-            ? data.detail 
-            : (data.detail?.msg || 'Erro ao criar conta');
-          throw new Error(errorMsg);
+        // Tentar fazer parse do JSON
+        let data = {};
+        try {
+          data = await resp.json();
+        } catch (jsonErr) {
+          // Se não for JSON, provavelmente é um erro 500 que retorna HTML
+          throw new Error('Erro no servidor. Tente novamente mais tarde.');
         }
 
-        const data = await resp.json();
+        if (!resp.ok) {
+          const errorMsg = typeof data.detail === 'string' 
+            ? data.detail 
+            : (data.detail?.msg || data.message || 'Erro ao criar conta');
+          throw new Error(errorMsg);
+        }
 
         success.textContent = '✅ Conta criada com sucesso! Redirecionando...';
         success.style.display = 'block';
