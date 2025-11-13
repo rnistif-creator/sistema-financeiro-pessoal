@@ -256,7 +256,7 @@
 
     <div class="card">
       <h2 style="margin-bottom:20px; font-size:20px">📝 Novo Lançamento Recorrente</h2>
-      <form id="formRecorrente" onsubmit="salvarRecorrente(event)">
+      <form id="formRecorrente" data-onsubmit="salvarRecorrente()">
         <input type="hidden" id="recorrenteId">
         <div class="form-grid">
           <div class="form-group">
@@ -309,7 +309,7 @@
         </div>
         <div style="display:flex; gap:12px">
           <button type="submit" class="btn btn-success">💾 Salvar</button>
-          <button type="button" class="btn btn-secondary" onclick="cancelarEdicao()">✖️ Cancelar</button>
+          <button type="button" class="btn btn-secondary" data-onclick="cancelarEdicao()">✖️ Cancelar</button>
         </div>
       </form>
     </div>
@@ -405,16 +405,16 @@
           <td>${r.ultima_geracao || '-'}</td>
           <td>
             <div class="actions">
-              <button class="btn-small btn-generate" onclick="gerarLancamento(${r.id})" title="Gerar Lançamento">
+              <button class="btn-small btn-generate" data-onclick="gerarLancamento(${r.id})" title="Gerar Lançamento">
                 ⚡ Gerar
               </button>
-              <button class="btn-small btn-toggle" onclick="toggleRecorrente(${r.id})" title="${r.ativo ? 'Desativar' : 'Ativar'}">
+              <button class="btn-small btn-toggle" data-onclick="toggleRecorrente(${r.id})" title="${r.ativo ? 'Desativar' : 'Ativar'}">
                 ${r.ativo ? '⏸️' : '▶️'}
               </button>
-              <button class="btn-small btn-edit" onclick="editarRecorrente(${r.id})" title="Editar">
+              <button class="btn-small btn-edit" data-onclick="editarRecorrente(${r.id})" title="Editar">
                 ✏️
               </button>
-              <button class="btn-small btn-delete" onclick="excluirRecorrente(${r.id})" title="Excluir">
+              <button class="btn-small btn-delete" data-onclick="excluirRecorrente(${r.id})" title="Excluir">
                 🗑️
               </button>
             </div>
@@ -566,6 +566,14 @@
     document.getElementById('dataInicio').value = todayISO();
     carregarTipos();
     carregarRecorrentes();
+
+    // Dispatcher exports
+    window.salvarRecorrente = salvarRecorrente;
+    window.cancelarEdicao = cancelarEdicao;
+    window.gerarLancamento = gerarLancamento;
+    window.toggleRecorrente = toggleRecorrente;
+    window.editarRecorrente = editarRecorrente;
+    window.excluirRecorrente = excluirRecorrente;
 
     // Atalhos de teclado
     document.addEventListener('keydown', (e) => {

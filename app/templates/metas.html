@@ -267,10 +267,10 @@
     <div class="section">
       <div class="periodo-atual">
         <label>Visualizar:</label>
-        <select id="anoSelecionado" onchange="carregarProgresso()">
+        <select id="anoSelecionado" data-onchange="carregarProgresso()">
           <!-- Preenchido via JS -->
         </select>
-        <select id="mesSelecionado" onchange="carregarProgresso()">
+        <select id="mesSelecionado" data-onchange="carregarProgresso()">
           <option value="1">Janeiro</option>
           <option value="2">Fevereiro</option>
           <option value="3">Março</option>
@@ -303,7 +303,7 @@
         </div>
       </div>
 
-      <form id="formMeta" onsubmit="salvarMeta(event)">
+      <form id="formMeta" data-onsubmit="salvarMeta()">
         <div class="form-grid">
           <div class="form-group">
             <label>Ano *</label>
@@ -349,7 +349,7 @@
 
         <div class="actions" style="margin-top:16px;">
           <button type="submit" class="btn btn-primary">💾 Salvar Meta</button>
-          <button type="button" class="btn btn-outline" onclick="limparFormulario()">🔄 Limpar</button>
+          <button type="button" class="btn btn-outline" data-onclick="limparFormulario()">🔄 Limpar</button>
         </div>
       </form>
     </div>
@@ -359,7 +359,7 @@
       <h2 class="section-title">📋 Metas Cadastradas</h2>
       
       <div class="actions">
-        <button class="btn btn-outline" onclick="carregarMetas()">🔄 Atualizar</button>
+        <button class="btn btn-outline" data-action="carregarMetas">🔄 Atualizar</button>
       </div>
 
       <div id="metasLoading" class="loading">Carregando metas...</div>
@@ -578,10 +578,10 @@
           </div>
           
           <div class="meta-actions">
-            <button class="btn btn-outline" onclick="editarMeta(${meta.id})" style="padding:6px 12px; font-size:12px;">
+            <button class="btn btn-outline" data-onclick="editarMeta(${meta.id})" style="padding:6px 12px; font-size:12px;">
               ✏️ Editar
             </button>
-            <button class="btn btn-danger" onclick="deletarMeta(${meta.id})" style="padding:6px 12px; font-size:12px;">
+            <button class="btn btn-danger" data-onclick="deletarMeta(${meta.id})" style="padding:6px 12px; font-size:12px;">
               🗑️ Deletar
             </button>
           </div>
@@ -723,6 +723,13 @@
 
     // Inicializar ao carregar
     inicializar();
+    // Dispatcher exports
+    window.carregarProgresso = carregarProgresso;
+    window.salvarMeta = salvarMeta;
+    window.limparFormulario = limparFormulario;
+    window.carregarMetas = carregarMetas;
+    window.editarMeta = editarMeta;
+    window.deletarMeta = deletarMeta;
 
     // ========== ACESSIBILIDADE E ATALHOS ==========
     document.addEventListener('keydown', (e) => {

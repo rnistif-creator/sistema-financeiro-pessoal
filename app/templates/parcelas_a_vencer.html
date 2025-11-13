@@ -405,7 +405,7 @@
         <h1 class="title">📅 Parcelas a Vencer</h1>
         <div class="nav-links">
           <button id="btnOpenFiltersParc" class="nav-btn" style="border-style:solid; border-color: rgba(148,163,184,0.35); background: rgba(15,23,42,0.55); color: var(--text);">🧰 Filtros</button>
-          <button onclick="exportarParcelasExcel()" style="padding:10px 20px; background:linear-gradient(135deg, #10b981, #059669); color:white; border:none; border-radius:10px; font-weight:700; cursor:pointer; display:flex; align-items:center; gap:8px; transition:all .2s; box-shadow:0 4px 12px rgba(16,185,129,0.3);" onmouseover="this.style.transform='translateY(-2px)'; this.style.boxShadow='0 6px 16px rgba(16,185,129,0.4)'" onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='0 4px 12px rgba(16,185,129,0.3)'">
+          <button data-action="exportarParcelasExcel" style="padding:10px 20px; background:linear-gradient(135deg, #10b981, #059669); color:white; border:none; border-radius:10px; font-weight:700; cursor:pointer; display:flex; align-items:center; gap:8px; transition:all .2s; box-shadow:0 4px 12px rgba(16,185,129,0.3);">
             📊 Exportar Excel
           </button>
         </div>
@@ -422,10 +422,10 @@
           <div class="filter-group">
             <label>Período Rápido</label>
             <div class="quick-filters" style="flex-wrap:wrap">
-              <button class="quick-filter-btn" onclick="aplicarFiltroRapido(this, 7)">7 dias</button>
-              <button class="quick-filter-btn" onclick="aplicarFiltroRapido(this, 15)">15 dias</button>
-              <button class="quick-filter-btn active" onclick="aplicarFiltroRapido(this, 30)">30 dias</button>
-              <button class="quick-filter-btn" onclick="aplicarFiltroRapido(this, 60)">60 dias</button>
+              <button class="quick-filter-btn" data-onclick="aplicarFiltroRapido(7)">7 dias</button>
+              <button class="quick-filter-btn" data-onclick="aplicarFiltroRapido(15)">15 dias</button>
+              <button class="quick-filter-btn active" data-onclick="aplicarFiltroRapido(30)">30 dias</button>
+              <button class="quick-filter-btn" data-onclick="aplicarFiltroRapido(60)">60 dias</button>
             </div>
           </div>
           <div class="filter-group">
@@ -454,7 +454,7 @@
             </select>
           </div>
           <div style="display:flex; gap:8px; margin-top:12px;">
-            <button class="btn" style="flex:1" onclick="carregarParcelas(); toggleParcSidebar(false);">Aplicar</button>
+            <button class="btn" style="flex:1" data-action="aplicarFiltrosParc">Aplicar</button>
           </div>
         </div>
       </aside>
@@ -466,11 +466,11 @@
       <div class="table-container">
         <div class="table-header">
           <div style="display:flex; align-items:center; gap:12px">
-            <input type="checkbox" id="selectAll" onchange="toggleSelectAll()">
+            <input type="checkbox" id="selectAll" data-onchange="toggleSelectAll()">
             <span class="table-title">Lista de Parcelas</span>
           </div>
           <div class="bulk-actions" id="bulkActions">
-            <button class="btn" onclick="pagarSelecionadas()">💰 Pagar Selecionadas</button>
+            <button class="btn" data-onclick="pagarSelecionadas()">💰 Pagar Selecionadas</button>
           </div>
         </div>
         <div id="tabelaParcelas">
@@ -489,10 +489,14 @@
         return result.toISOString().split('T')[0];
       }
 
-      function aplicarFiltroRapido(el, dias) {
-        // Remover active de todos os botões
+      function aplicarFiltroRapido(elOrDias, maybeDias) {
+        let el = elOrDias;
+        let dias = maybeDias;
+        if (typeof elOrDias === 'number' && maybeDias === undefined) {
+          dias = elOrDias;
+          el = this;
+        }
         document.querySelectorAll('.quick-filter-btn').forEach(btn => btn.classList.remove('active'));
-        // Adicionar active ao botão clicado
         if (el) { el.classList.add('active'); }
 
         const hoje = todayISO();
@@ -502,6 +506,11 @@
         document.getElementById('dataFim').value = fim;
 
         carregarParcelas();
+      }
+
+      function aplicarFiltrosParc(){
+        carregarParcelas();
+        toggleParcSidebar(false);
       }
 
       // ========== EXPORTAÇÃO EXCEL ==========
@@ -662,7 +671,7 @@
           
           return `
             <tr class="${rowClass}">
-              <td><input type="checkbox" class="parcela-checkbox" data-id="${p.id}" onchange="updateBulkActions()"></td>
+              <td><input type="checkbox" class="parcela-checkbox" data-id="${p.id}" data-onchange="updateBulkActions()"></td>
               <td>${p.lancamento_id}</td>
               <td>${p.numero_parcela}</td>
               <td><span class="badge ${p.tipo}">${p.tipo === 'receita' ? '📈' : '📉'} ${p.tipo}</span></td>
@@ -672,8 +681,8 @@
               <td style="font-weight:600">${brl.format(p.valor)}</td>
               <td>${statusBadge}</td>
               <td>
-                <button class="btn-editar" onclick="abrirModalEdicao(${p.id}, '${p.data_vencimento}', ${p.valor})">✏️ Editar</button>
-                <button class="btn-pagar" onclick="pagarParcela(${p.id}, ${p.valor}, '${p.fornecedor.replace(/'/g, "\\'")}', ${p.numero_parcela})">💰 Pagar</button>
+                <button class="btn-editar" data-onclick="abrirModalEdicao(${p.id}, '${p.data_vencimento}', ${p.valor})">✏️ Editar</button>
+                <button class="btn-pagar" data-onclick="pagarParcela(${p.id}, ${p.valor}, '${p.fornecedor.replace(/'/g, "\\'")}', ${p.numero_parcela})">💰 Pagar</button>
               </td>
             </tr>
           `;
@@ -862,9 +871,9 @@
       <div class="modal">
         <div class="modal-header">
           <h3 class="modal-title">✏️ Editar Parcela</h3>
-          <button class="modal-close" onclick="fecharModal()">&times;</button>
+          <button class="modal-close" data-onclick="fecharModal()">&times;</button>
         </div>
-        <form id="formEdicao" onsubmit="salvarEdicao(event)">
+        <form id="formEdicao" data-onsubmit="salvarEdicao()">
           <input type="hidden" id="parcelaIdEdit">
           <div class="form-group">
             <label for="dataVencimentoEdit">Data de Vencimento</label>
@@ -875,7 +884,7 @@
             <input type="number" id="valorEdit" step="0.01" min="0" required>
           </div>
           <div class="modal-actions">
-            <button type="button" class="btn-cancel" onclick="fecharModal()">Cancelar</button>
+            <button type="button" class="btn-cancel" data-onclick="fecharModal()">Cancelar</button>
             <button type="submit" class="btn-save">💾 Salvar</button>
           </div>
         </form>
@@ -905,11 +914,25 @@
         }, 'Selecionar todas');
 
         KeyboardShortcuts.register('ctrl+p', () => {
-          const btnPagar = document.querySelector('[onclick*="pagarSelecionadas"]');
+          const btnPagar = document.querySelector('[data-onclick*="pagarSelecionadas"]');
           if (btnPagar && parcelasSelecionadas.size > 0) {
             btnPagar.click();
           }
         }, 'Pagar selecionadas');
       </script>
+    <script{%- if csp_nonce %} nonce="{{ csp_nonce }}"{%- endif %}>
+      window.exportarParcelasExcel = exportarParcelasExcel;
+      window.aplicarFiltroRapido = aplicarFiltroRapido;
+      window.aplicarFiltrosParc = aplicarFiltrosParc;
+      window.carregarParcelas = carregarParcelas;
+      window.toggleSelectAll = toggleSelectAll;
+      window.updateBulkActions = updateBulkActions;
+      window.pagarSelecionadas = pagarSelecionadas;
+      window.pagarParcela = pagarParcela;
+      window.abrirModalEdicao = abrirModalEdicao;
+      window.fecharModal = fecharModal;
+      window.salvarEdicao = salvarEdicao;
+      window.toggleParcSidebar = toggleParcSidebar;
+    </script>
   </body>
 </html>

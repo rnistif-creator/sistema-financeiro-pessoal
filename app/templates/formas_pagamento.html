@@ -209,14 +209,14 @@
     <div class="formas-container">
         <div class="page-header">
             <h1>💳 Formas de Pagamento</h1>
-            <button class="btn btn-primary" onclick="abrirFormulario()">
+            <button class="btn btn-primary" data-action="abrirFormulario">
                 ➕ Nova Forma
             </button>
         </div>
 
         <div class="filtros">
             <label>
-                <input type="checkbox" id="mostrarInativas" onchange="carregarFormas()">
+                <input type="checkbox" id="mostrarInativas" data-onchange="carregarFormas()">
                 Mostrar inativas
             </label>
         </div>
@@ -303,13 +303,13 @@
                         </div>
                     </div>
                     <div class="forma-actions">
-                        <button class="btn-icon" onclick="editarForma(${forma.id})" title="Editar">
+                        <button class="btn-icon" data-onclick="editarForma(${forma.id})" title="Editar">
                             ✏️
                         </button>
-                        <button class="btn-icon" onclick="toggleForma(${forma.id})" title="${forma.ativo ? 'Desativar' : 'Ativar'}">
+                        <button class="btn-icon" data-onclick="toggleForma(${forma.id})" title="${forma.ativo ? 'Desativar' : 'Ativar'}">
                             ${forma.ativo ? '🔴' : '🟢'}
                         </button>
-                        <button class="btn-icon" onclick="confirmarExclusao(${forma.id}, '${forma.nome}')" title="Excluir">
+                        <button class="btn-icon" data-onclick="confirmarExclusao(${forma.id}, '${forma.nome}')" title="Excluir">
                             🗑️
                         </button>
                     </div>
@@ -322,7 +322,7 @@
             const titulo = forma ? 'Editar Forma de Pagamento' : 'Nova Forma de Pagamento';
             
             const html = `
-                <form id="formaForm" onsubmit="salvarForma(event)">
+                <form id="formaForm" data-onsubmit="salvarForma()">
                     <div class="form-group">
                         <label>Nome *</label>
                         <input type="text" name="nome" value="${forma?.nome || ''}" required maxlength="100">
@@ -331,7 +331,7 @@
                     <div class="form-row">
                         <div class="form-group">
                             <label>Tipo *</label>
-                            <select name="tipo" required onchange="toggleCamposAdicionais(this.value)">
+                            <select name="tipo" required data-onchange="toggleCamposAdicionais()">
                                 <option value="">Selecione...</option>
                                 <option value="conta" ${forma?.tipo === 'conta' ? 'selected' : ''}>Conta Bancária</option>
                                 <option value="cartao_credito" ${forma?.tipo === 'cartao_credito' ? 'selected' : ''}>Cartão de Crédito</option>
@@ -365,7 +365,7 @@
                     </div>
 
                     <div style="display: flex; gap: 10px; justify-content: flex-end; margin-top: 20px;">
-                        <button type="button" class="btn btn-secondary" onclick="PromptDialog.close()">Cancelar</button>
+                        <button type="button" class="btn btn-secondary" data-action="closePromptDialog">Cancelar</button>
                         <button type="submit" class="btn btn-primary">Salvar</button>
                     </div>
                 </form>
@@ -381,6 +381,7 @@
         }
 
         function toggleCamposAdicionais(tipo) {
+            if (!tipo && this && this.value) { tipo = this.value; }
             const limiteCreditoGroup = document.getElementById('limiteCreditoGroup');
             limiteCreditoGroup.style.display = tipo === 'cartao_credito' ? 'block' : 'none';
         }
@@ -506,6 +507,16 @@
         document.addEventListener('DOMContentLoaded', () => {
             carregarFormas();
         });
+        // Dispatcher exports
+        window.abrirFormulario = abrirFormulario;
+        window.carregarFormas = carregarFormas;
+        window.editarForma = editarForma;
+        window.toggleForma = toggleForma;
+        window.confirmarExclusao = confirmarExclusao;
+        window.excluirForma = excluirForma;
+        window.salvarForma = salvarForma;
+        window.toggleCamposAdicionais = toggleCamposAdicionais;
+        window.closePromptDialog = function(){ if (window.PromptDialog) PromptDialog.close(); };
     </script>
 </body>
 </html>

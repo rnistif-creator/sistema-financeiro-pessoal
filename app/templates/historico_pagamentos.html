@@ -39,8 +39,8 @@
     <div class="page-header">
       <h1>📜 Histórico de Pagamentos</h1>
       <div class="actions">
-        <button class="btn btn-secondary" onclick="limparFiltros()">Limpar</button>
-        <button class="btn btn-primary" onclick="carregar()">Atualizar</button>
+        <button class="btn btn-secondary" data-action="limparFiltros">Limpar</button>
+        <button class="btn btn-primary" data-action="carregar">Atualizar</button>
       </div>
     </div>
 
@@ -246,6 +246,9 @@
       applyQueryParams();
       await carregar();
     });
+    // Export for dispatcher
+    window.limparFiltros = limparFiltros;
+    window.carregar = carregar;
   </script>
 </body>
 </html>

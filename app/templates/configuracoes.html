@@ -229,7 +229,7 @@
         </div>
       </div>
 
-      <button onclick="abrirModalSenha()" class="btn btn-primary">
+      <button data-action="abrirModalSenha" class="btn btn-primary">
         🔒 Alterar Senha
       </button>
     </div>
@@ -239,7 +239,7 @@
       <div style="background: var(--card); border-radius: 16px; padding: 24px; width: 90%; max-width: 480px; box-shadow: 0 20px 60px rgba(0,0,0,0.5); border: 1px solid rgba(148,163,184,0.1);">
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
           <h3 style="margin: 0; font-size: 20px; color: var(--text);">🔐 Alterar Senha</h3>
-          <button onclick="fecharModalSenha()" style="background: none; border: none; font-size: 24px; cursor: pointer; color: var(--text); padding: 0; width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; border-radius: 8px; transition: background 0.2s;">×</button>
+          <button data-action="fecharModalSenha" style="background: none; border: none; font-size: 24px; cursor: pointer; color: var(--text); padding: 0; width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; border-radius: 8px; transition: background 0.2s;">×</button>
         </div>
 
         <form id="formAlterarSenha">
@@ -269,7 +269,7 @@
               autocomplete="new-password"
               style="width: 100%; padding: 10px; border-radius: 8px; border: 1px solid rgba(148,163,184,0.3); background: var(--bg); color: var(--text); font-size: 14px;"
               placeholder="Mínimo 6 caracteres"
-              oninput="avaliarForcaSenha()"
+              data-oninput="avaliarForcaSenha()"
             />
             <div id="forcaSenha" style="margin-top: 8px; display: none;">
               <div style="display: flex; gap: 4px; margin-bottom: 4px;">
@@ -298,7 +298,7 @@
           </div>
 
           <div style="display: flex; gap: 12px; justify-content: flex-end;">
-            <button type="button" onclick="fecharModalSenha()" class="btn" style="background: rgba(148,163,184,0.1); color: var(--text);">
+            <button type="button" data-action="fecharModalSenha" class="btn" style="background: rgba(148,163,184,0.1); color: var(--text);">
               Cancelar
             </button>
             <button type="submit" class="btn btn-primary">
@@ -322,9 +322,9 @@
       </div>
 
       <div class="actions">
-        <button class="btn btn-primary" onclick="criarBackup()">📦 Criar Backup Agora</button>
-        <button class="btn btn-success" onclick="exportarJSON()">📄 Exportar JSON</button>
-        <button class="btn btn-outline" onclick="carregarBackups()">🔄 Atualizar Lista</button>
+        <button class="btn btn-primary" data-action="criarBackup">📦 Criar Backup Agora</button>
+        <button class="btn btn-success" data-action="exportarJSON">📄 Exportar JSON</button>
+        <button class="btn btn-outline" data-action="carregarBackups">🔄 Atualizar Lista</button>
       </div>
 
       <div class="stats-grid" id="backupStats"></div>
@@ -340,7 +340,7 @@
       <h2 class="section-title">🔍 Diagnóstico de Integridade</h2>
       
       <div class="actions">
-        <button class="btn btn-primary" onclick="executarDiagnostico()">▶️ Executar Diagnóstico</button>
+        <button class="btn btn-primary" data-action="executarDiagnostico">▶️ Executar Diagnóstico</button>
       </div>
 
       <div id="diagnosticoLoading" class="loading" style="display:none;">Executando diagnóstico...</div>
@@ -435,13 +435,13 @@
               <td>${backup.size_mb} MB</td>
               <td>${idade}</td>
               <td>
-                <button class="btn btn-success" onclick="restaurarBackup('${backup.filename}')" style="padding:6px 12px; font-size:12px; margin-right:8px;">
+                <button class="btn btn-success" data-onclick="restaurarBackup('${backup.filename}')" style="padding:6px 12px; font-size:12px; margin-right:8px;">
                   ♻️ Restaurar
                 </button>
-                <button class="btn btn-outline" onclick="baixarBackup('${backup.filename}')" style="padding:6px 12px; font-size:12px; margin-right:8px;">
+                <button class="btn btn-outline" data-onclick="baixarBackup('${backup.filename}')" style="padding:6px 12px; font-size:12px; margin-right:8px;">
                   ⬇️ Baixar
                 </button>
-                <button class="btn btn-danger" onclick="removerBackup('${backup.filename}')" style="padding:6px 12px; font-size:12px;">
+                <button class="btn btn-danger" data-onclick="removerBackup('${backup.filename}')" style="padding:6px 12px; font-size:12px;">
                   🗑️ Remover
                 </button>
               </td>

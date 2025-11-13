@@ -361,14 +361,14 @@
         <div style="display:flex; gap:20px; align-items:center; flex-wrap:wrap;">
           <div style="display:flex; gap:8px; align-items:center;">
             <label>Ano:</label>
-            <select id="anoTabela" onchange="carregarTabelaAnual()" style="padding:8px 12px; background:var(--bg); color:var(--text); border:1px solid rgba(148,163,184,0.3); border-radius:8px; font-size:14px;">
+            <select id="anoTabela" data-onchange="carregarTabelaAnual()" style="padding:8px 12px; background:var(--bg); color:var(--text); border:1px solid rgba(148,163,184,0.3); border-radius:8px; font-size:14px;">
               <!-- Opções serão preenchidas via JS -->
             </select>
           </div>
           
           <div style="display:flex; gap:8px; align-items:center;">
             <label>Considerar data de:</label>
-            <select id="tipoDataTabela" onchange="carregarTabelaAnual()" style="padding:8px 12px; background:var(--bg); color:var(--text); border:1px solid rgba(148,163,184,0.3); border-radius:8px; font-size:14px;">
+            <select id="tipoDataTabela" data-onchange="carregarTabelaAnual()" style="padding:8px 12px; background:var(--bg); color:var(--text); border:1px solid rgba(148,163,184,0.3); border-radius:8px; font-size:14px;">
               <option value="vencimento">📅 Vencimento</option>
               <option value="pagamento">💰 Pagamento</option>
             </select>
@@ -615,7 +615,7 @@
                   ${variacaoIcon} ${Math.abs(forma.variacao_mes_anterior).toFixed(1)}% vs mês anterior
                 </div>
               </div>
-              <a href="/historico-pagamentos?forma=${forma.forma_id}" style="padding:8px 12px; border-radius:8px; background:rgba(34,211,238,0.1); color:var(--primary); text-decoration:none; font-size:13px; font-weight:600; border:1px solid rgba(34,211,238,0.2); transition:all .2s;" onmouseover="this.style.background='rgba(34,211,238,0.15)'" onmouseout="this.style.background='rgba(34,211,238,0.1)'">Ver histórico</a>
+              <a href="/historico-pagamentos?forma=${forma.forma_id}" style="padding:8px 12px; border-radius:8px; background:rgba(34,211,238,0.1); color:var(--primary); text-decoration:none; font-size:13px; font-weight:600; border:1px solid rgba(34,211,238,0.2); transition:all .2s;">Ver histórico</a>
             </div>
           `;
         });
@@ -761,10 +761,8 @@
         html += `
           <div style="background:var(--card); border-radius:10px; border:1px solid rgba(148,163,184,0.15); overflow:hidden;">
             <div 
-              onclick="${temDetalhes ? `toggleHierarquia('${tipoId}')` : ''}" 
+              ${temDetalhes ? `data-onclick="toggleHierarquia('${tipoId}')"` : ''}
               style="display:flex; align-items:center; justify-content:space-between; padding:16px; cursor:${temDetalhes ? 'pointer' : 'default'}; transition:background .2s;"
-              onmouseover="${temDetalhes ? `this.style.background='rgba(148,163,184,0.05)'` : ''}"
-              onmouseout="${temDetalhes ? `this.style.background='transparent'` : ''}"
             >
               <div style="display:flex; align-items:center; gap:12px; flex:1;">
                 ${temDetalhes ? `<span id="chevron-${tipoId}" style="font-size:14px; transition:transform .2s; color:var(--muted);">▶</span>` : '<span style="width:14px;"></span>'}
@@ -952,7 +950,7 @@
               <div style="font-size:48px; margin-bottom:16px;">📊</div>
               <h3 style="margin-bottom:8px; font-size:20px;">Nenhum widget selecionado</h3>
               <p style="color:var(--muted); margin-bottom:20px;">Configure os widgets que deseja visualizar no dashboard</p>
-              <button onclick="abrirConfigWidgets()" style="padding:12px 24px; border-radius:10px; border:none; background:var(--primary); color:var(--bg); font-weight:700; cursor:pointer; transition:all .2s;" onmouseover="this.style.background='var(--primary-strong)'" onmouseout="this.style.background='var(--primary)'">
+              <button data-action="abrirConfigWidgets" style="padding:12px 24px; border-radius:10px; border:none; background:var(--primary); color:var(--bg); font-weight:700; cursor:pointer; transition:all .2s;">
                 ⚙️ Configurar Widgets
               </button>
             </div>
