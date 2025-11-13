@@ -18,7 +18,7 @@
           <p class="subtitle">Preencha os campos abaixo e clique em <strong>Lançar</strong>.</p>
         </div>
         <div style="display:flex; gap:12px">
-          <button type="button" onclick="exportarLancamentosExcel()" style="padding:10px 20px; background:linear-gradient(135deg, #10b981, #059669); color:white; border:none; border-radius:10px; font-weight:700; cursor:pointer; display:flex; align-items:center; gap:8px; transition:all .2s; box-shadow:0 4px 12px rgba(16,185,129,0.3);" onmouseover="this.style.transform='translateY(-2px)'; this.style.boxShadow='0 6px 16px rgba(16,185,129,0.4)'" onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='0 4px 12px rgba(16,185,129,0.3)'">
+          <button type="button" id="btnExportarExcel" style="padding:10px 20px; background:linear-gradient(135deg, #10b981, #059669); color:white; border:none; border-radius:10px; font-weight:700; cursor:pointer; display:flex; align-items:center; gap:8px; transition:all .2s; box-shadow:0 4px 12px rgba(16,185,129,0.3);">
             📊 Exportar Excel
           </button>
         </div>
@@ -447,7 +447,7 @@
       listContainer.innerHTML = `
         <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px">
           <h3 style="margin:0">Últimos lançamentos</h3>
-          <button onclick="toggleFiltros()" class="btn-link" style="padding:8px 16px">🔍 Filtros</button>
+          <button data-action="toggleFiltros" class="btn-link" style="padding:8px 16px">🔍 Filtros</button>
         </div>
         <div id="filtros" style="display:none; padding:16px; background:rgba(15,23,42,0.5); border-radius:12px; margin-bottom:16px">
           <div class="input-row" style="gap:12px; margin-bottom:12px">
@@ -487,8 +487,8 @@
             </div>
           </div>
           <div class="buttons" style="margin-top:12px">
-            <button onclick="limparFiltros()" class="btn btn-outline">Limpar</button>
-            <button onclick="aplicarFiltros()" class="btn btn-primary">Aplicar</button>
+            <button data-action="limparFiltros" class="btn btn-outline">Limpar</button>
+            <button data-action="aplicarFiltros" class="btn btn-primary">Aplicar</button>
           </div>
         </div>
         <div id="lista"></div>
@@ -530,17 +530,17 @@
             <td style="padding: 12px 8px">${x.fornecedor}</td>
             <td style="padding: 12px 8px; font-weight:600">${brl.format(x.valor_total)}</td>
             <td style="padding: 12px 8px; text-align:center">
-              <button onclick="toggleParcelas(${x.id})" style="padding:4px 10px; border:none; border-radius:6px; background:rgba(168,85,247,0.15); color:#a855f7; cursor:pointer; font-size:12px; font-weight:600" title="Ver Parcelas">
+              <button data-action="toggleParcelas" data-args='[${x.id}]' style="padding:4px 10px; border:none; border-radius:6px; background:rgba(168,85,247,0.15); color:#a855f7; cursor:pointer; font-size:12px; font-weight:600" title="Ver Parcelas">
                 ${x.numero_parcelas}x 📋
               </button>
             </td>
             <td style="padding: 12px 8px">${brl.format(x.valor_medio_parcelas)}</td>
             <td style="padding: 12px 8px">${formatarDataBR(x.data_lancamento)}</td>
             <td style="padding: 12px 8px; text-align:right">
-              <button onclick="editarLancamento(${x.id})" style="padding:6px 12px; border:none; border-radius:6px; background:rgba(34,211,238,0.15); color:#22d3ee; cursor:pointer; margin-right:6px" title="Editar">
+              <button data-action="editarLancamento" data-args='[${x.id}]' style="padding:6px 12px; border:none; border-radius:6px; background:rgba(34,211,238,0.15); color:#22d3ee; cursor:pointer; margin-right:6px" title="Editar">
                 ✏️
               </button>
-              <button onclick="excluirLancamento(${x.id})" style="padding:6px 12px; border:none; border-radius:6px; background:rgba(239,68,68,0.15); color:#ef4444; cursor:pointer" title="Excluir">
+              <button data-action="excluirLancamento" data-args='[${x.id}]' style="padding:6px 12px; border:none; border-radius:6px; background:rgba(239,68,68,0.15); color:#ef4444; cursor:pointer" title="Excluir">
                 🗑️
               </button>
             </td>
@@ -782,13 +782,13 @@
               </div>
               <div style="flex:0 0 auto; text-align:right">
                 ${!p.paga ? 
-                  `<button onclick="abrirModalEdicaoParcela(${p.id}, '${p.data_vencimento}', ${p.valor})" style="padding:6px 14px; margin-right:6px; border:none; border-radius:6px; background:rgba(59,130,246,0.15); color:#3b82f6; cursor:pointer; font-size:12px; font-weight:600" title="Editar parcela">
+                  `<button data-action="abrirModalEdicaoParcela" data-args='[${p.id}, "${p.data_vencimento}", ${p.valor}]' style="padding:6px 14px; margin-right:6px; border:none; border-radius:6px; background:rgba(59,130,246,0.15); color:#3b82f6; cursor:pointer; font-size:12px; font-weight:600" title="Editar parcela">
                     ✏️ Editar
                   </button>
-                  <button onclick="abrirModalPagamento(${p.id}, ${p.valor})" style="padding:6px 14px; border:none; border-radius:6px; background:rgba(34,197,94,0.15); color:#22c55e; cursor:pointer; font-size:12px; font-weight:600" title="Marcar como paga">
+                  <button data-action="abrirModalPagamento" data-args='[${p.id}, ${p.valor}]' style="padding:6px 14px; border:none; border-radius:6px; background:rgba(34,197,94,0.15); color:#22c55e; cursor:pointer; font-size:12px; font-weight:600" title="Marcar como paga">
                     💰 Pagar
                   </button>` :
-                  `<button onclick="desmarcarPaga(${p.id}, ${lancamentoId})" style="padding:6px 14px; border:none; border-radius:6px; background:rgba(239,68,68,0.15); color:#ef4444; cursor:pointer; font-size:12px" title="Desmarcar como paga">
+                  `<button data-action="desmarcarPaga" data-args='[${p.id}, ${lancamentoId}]' style="padding:6px 14px; border:none; border-radius:6px; background:rgba(239,68,68,0.15); color:#ef4444; cursor:pointer; font-size:12px" title="Desmarcar como paga">
                     ✗
                   </button>`
                 }
@@ -938,6 +938,20 @@
         refreshList();
         Toast.show('Lista atualizada!', 'info');
       }, 'Atualizar lista');
+      
+      // Event listeners estáticos (CSP compliance)
+      document.getElementById('btnExportarExcel')?.addEventListener('click', exportarLancamentosExcel);
+      
+      // Expor funções no escopo global para events.js
+      window.toggleFiltros = toggleFiltros;
+      window.limparFiltros = limparFiltros;
+      window.aplicarFiltros = aplicarFiltros;
+      window.toggleParcelas = toggleParcelas;
+      window.editarLancamento = editarLancamento;
+      window.excluirLancamento = excluirLancamento;
+      window.abrirModalEdicaoParcela = abrirModalEdicaoParcela;
+      window.abrirModalPagamento = abrirModalPagamento;
+      window.desmarcarPaga = desmarcarPaga;
     </script>
   </body>
 </html>
