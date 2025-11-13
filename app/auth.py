@@ -35,7 +35,7 @@ class UserBase(BaseModel):
     nome: str = Field(..., min_length=2, max_length=100)
 
 class UserCreate(UserBase):
-    password: str = Field(..., min_length=8, max_length=72)
+    password: str = Field(..., min_length=8, max_length=50)
 
 class UserUpdate(BaseModel):
     nome: Optional[str] = Field(None, min_length=2, max_length=100)
@@ -71,13 +71,15 @@ class LoginRequest(BaseModel):
 
 def verify_password(plain_password: str, hashed_password: str) -> bool:
     """Verifica se a senha corresponde ao hash"""
-    # Bcrypt tem limite de 72 bytes
-    return pwd_context.verify(plain_password[:72], hashed_password)
+    # Bcrypt tem limite de 72 bytes - truncar em bytes, não caracteres
+    password_bytes = plain_password.encode('utf-8')[:72].decode('utf-8', errors='ignore')
+    return pwd_context.verify(password_bytes, hashed_password)
 
 def get_password_hash(password: str) -> str:
     """Gera hash bcrypt da senha"""
-    # Bcrypt tem limite de 72 bytes - truncar se necessário
-    return pwd_context.hash(password[:72])
+    # Bcrypt tem limite de 72 bytes - truncar em bytes, não caracteres
+    password_bytes = password.encode('utf-8')[:72].decode('utf-8', errors='ignore')
+    return pwd_context.hash(password_bytes)
 
 def validate_password_strength(password: str) -> bool:
     """Valida força mínima da senha: >=8, maiúscula, minúscula, dígito, símbolo"""
