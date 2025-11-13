@@ -292,11 +292,11 @@
                 <span style="padding:3px 6px; border-radius:4px; font-size:11px; ${sub.ativo ? 'background:rgba(34,197,94,0.1); color:#22c55e;' : 'background:rgba(148,163,184,0.1); color:#94a3b8;'}">
                   ${sub.ativo ? '✓' : '✗'}
                 </span>
-                <button type="button" data-action="editar-subtipo" data-tipo-id="${tipo.id}" data-subtipo-id="${sub.id}" style="background:none; border:none; cursor:pointer; padding:4px; opacity:0.6; transition:opacity .2s;">✏️</button>
-                <button type="button" data-action="excluir-subtipo" data-tipo-id="${tipo.id}" data-subtipo-id="${sub.id}" style="background:none; border:none; color:#ef4444; cursor:pointer; padding:4px; opacity:0.6; transition:opacity .2s;">×</button>
+                <button type="button" data-action="editarSubtipoInline" data-args='[${tipo.id}, ${sub.id}]' style="background:none; border:none; cursor:pointer; padding:4px; opacity:0.6; transition:opacity .2s;">✏️</button>
+                <button type="button" data-action="excluirSubtipoInline" data-args='[${tipo.id}, ${sub.id}]' style="background:none; border:none; color:#ef4444; cursor:pointer; padding:4px; opacity:0.6; transition:opacity .2s;">×</button>
               </div>
             `).join('')}
-            <button type="button" data-action="mostrar-form-subtipo" data-tipo-id="${tipo.id}" style="margin-top:8px; padding:6px 12px; border-radius:6px; border:1px dashed rgba(34,211,238,0.3); background:transparent; color:#22d3ee; cursor:pointer; width:100%; font-size:13px; transition:all .2s;">
+            <button type="button" data-action="mostrarFormNovoSubtipo" data-args='[${tipo.id}]' style="margin-top:8px; padding:6px 12px; border-radius:6px; border:1px dashed rgba(34,211,238,0.3); background:transparent; color:#22d3ee; cursor:pointer; width:100%; font-size:13px; transition:all .2s;">
               + Adicionar Subtipo
             </button>
           </div>
@@ -305,7 +305,7 @@
             <div style="padding:12px; color:#94a3b8; font-size:13px; text-align:center; font-style:italic;">
               Nenhum subtipo cadastrado
             </div>
-            <button type="button" data-action="mostrar-form-subtipo" data-tipo-id="${tipo.id}" style="margin-top:8px; padding:6px 12px; border-radius:6px; border:1px dashed rgba(34,211,238,0.3); background:transparent; color:#22d3ee; cursor:pointer; width:100%; font-size:13px; transition:all .2s;">
+            <button type="button" data-action="mostrarFormNovoSubtipo" data-args='[${tipo.id}]' style="margin-top:8px; padding:6px 12px; border-radius:6px; border:1px dashed rgba(34,211,238,0.3); background:transparent; color:#22d3ee; cursor:pointer; width:100%; font-size:13px; transition:all .2s;">
               + Adicionar Subtipo
             </button>
           </div>
@@ -314,12 +314,12 @@
         return `
           <li class="tipo-item" data-id="${tipo.id}" style="padding:12px; margin-bottom:8px;">
             <div style="display:flex; align-items:center; gap:8px;">
-              <button type="button" data-action="toggle-subtipos" data-tipo-id="${tipo.id}" style="background:none; border:none; cursor:pointer; padding:4px 8px; font-size:14px; color:#94a3b8; transition:transform .2s;" id="chevron-${tipo.id}">
+              <button type="button" data-action="toggleSubtipos" data-args='[${tipo.id}]' style="background:none; border:none; cursor:pointer; padding:4px 8px; font-size:14px; color:#94a3b8; transition:transform .2s;" id="chevron-${tipo.id}">
                 ▶
               </button>
               <span style="flex:1; font-weight:500;">${tipo.nome}</span>
               <span style="font-size:12px; color:#94a3b8;">${tipo.subtipos?.length || 0} subtipo(s)</span>
-              <button type="button" class="btn-delete" title="Excluir tipo" data-action="excluir-tipo" data-tipo-id="${tipo.id}">×</button>
+              <button type="button" class="btn-delete" title="Excluir tipo" data-action="confirmarExclusao" data-args='[${tipo.id}]'>×</button>
             </div>
             ${subtiposHtml}
           </li>
@@ -369,61 +369,13 @@
           listaDespesas.innerHTML = despesas.map(renderTipoItem).join('') || '<li class="hint">Nenhum tipo cadastrado</li>';
           listaReceitas.innerHTML = receitas.map(renderTipoItem).join('') || '<li class="hint">Nenhum tipo cadastrado</li>';
           
-          // Adicionar event listeners após renderização (CSP compliance)
-          attachEventListeners();
+          // O events.js gerencia os clicks em data-action automaticamente
         } catch (err) {
           console.error('Erro ao carregar tipos:', err);
           showToast(err.message, 'error');
         }
       }
       
-      function attachEventListeners() {
-        // Event listeners para botões dinamicamente criados
-        document.querySelectorAll('[data-action="toggle-subtipos"]').forEach(btn => {
-          btn.addEventListener('click', () => {
-            const tipoId = parseInt(btn.getAttribute('data-tipo-id'));
-            toggleSubtipos(tipoId);
-          });
-        });
-        
-        document.querySelectorAll('[data-action="excluir-tipo"]').forEach(btn => {
-          btn.addEventListener('click', () => {
-            const tipoId = parseInt(btn.getAttribute('data-tipo-id'));
-            confirmarExclusao(tipoId);
-          });
-        });
-        
-        document.querySelectorAll('[data-action="mostrar-form-subtipo"]').forEach(btn => {
-          btn.addEventListener('click', () => {
-            const tipoId = parseInt(btn.getAttribute('data-tipo-id'));
-            mostrarFormNovoSubtipo(tipoId);
-          });
-        });
-        
-        document.querySelectorAll('[data-action="editar-subtipo"]').forEach(btn => {
-          btn.addEventListener('click', () => {
-            const tipoId = parseInt(btn.getAttribute('data-tipo-id'));
-            const subtipoId = parseInt(btn.getAttribute('data-subtipo-id'));
-            editarSubtipoInline(tipoId, subtipoId);
-          });
-        });
-        
-        document.querySelectorAll('[data-action="excluir-subtipo"]').forEach(btn => {
-          btn.addEventListener('click', () => {
-            const tipoId = parseInt(btn.getAttribute('data-tipo-id'));
-            const subtipoId = parseInt(btn.getAttribute('data-subtipo-id'));
-            excluirSubtipoInline(tipoId, subtipoId);
-          });
-        });
-        
-        document.querySelectorAll('[data-action="cancelar-form-subtipo"]').forEach(btn => {
-          btn.addEventListener('click', () => {
-            const tipoId = parseInt(btn.getAttribute('data-tipo-id'));
-            cancelarFormSubtipo(tipoId);
-          });
-        });
-      }
-
       function confirmarExclusao(id) {
         ConfirmDialog.show(
           'Confirmar Exclusão',
@@ -485,7 +437,8 @@
       // ============================================
       // GESTÃO DE SUBTIPOS INLINE
       // ============================================
-      function toggleSubtipos(tipoId) {
+      // Tornar funções globais para que events.js possa encontrá-las
+      window.toggleSubtipos = function(tipoId) {
         const container = document.getElementById(`subtipos-${tipoId}`);
         const chevron = document.getElementById(`chevron-${tipoId}`);
         
@@ -494,7 +447,7 @@
           container.style.display = isVisible ? 'none' : 'block';
           chevron.style.transform = isVisible ? 'rotate(0deg)' : 'rotate(90deg)';
         }
-      }
+      };
       
       async function mostrarFormNovoSubtipo(tipoId) {
         const container = document.getElementById(`subtipos-${tipoId}`);
@@ -505,7 +458,7 @@
         
         const formHtml = `
           <div class="form-novo-subtipo" style="margin-top:12px; padding:12px; background:rgba(34,211,238,0.05); border-radius:8px; border:1px solid rgba(34,211,238,0.2);">
-            <form onsubmit="salvarSubtipoInline(event, ${tipoId})" style="display:flex; gap:8px; flex-wrap:wrap; align-items:end;">
+            <form id="form-subtipo-${tipoId}" style="display:flex; gap:8px; flex-wrap:wrap; align-items:end;">
               <div style="flex:1; min-width:150px;">
                 <label style="display:block; font-size:12px; color:#94a3b8; margin-bottom:4px;">Nome</label>
                 <input type="text" id="nome-subtipo-${tipoId}" required placeholder="Ex: Restaurante..." style="width:100%; padding:8px 10px; border-radius:6px; border:1px solid rgba(148,163,184,0.35); background:rgba(15,23,42,0.65); color:#e5e7eb; font-size:14px;">
@@ -519,7 +472,7 @@
               <button type="submit" style="padding:8px 14px; border-radius:6px; border:none; background:#22d3ee; color:#00212a; font-weight:600; cursor:pointer; font-size:13px;">
                 💾 Salvar
               </button>
-              <button type="button" data-action="cancelar-form-subtipo" data-tipo-id="${tipoId}" style="padding:8px 14px; border-radius:6px; border:1px solid rgba(148,163,184,0.35); background:transparent; color:#e5e7eb; cursor:pointer; font-size:13px;">
+              <button type="button" data-action="cancelarFormSubtipo" data-args='[${tipoId}]' style="padding:8px 14px; border-radius:6px; border:1px solid rgba(148,163,184,0.35); background:transparent; color:#e5e7eb; cursor:pointer; font-size:13px;">
                 Cancelar
               </button>
             </form>
@@ -529,10 +482,10 @@
         container.insertAdjacentHTML('beforeend', formHtml);
         document.getElementById(`nome-subtipo-${tipoId}`).focus();
         
-        // Adicionar event listener ao botão cancelar recém-criado
-        const btnCancelar = container.querySelector('[data-action="cancelar-form-subtipo"]');
-        if (btnCancelar) {
-          btnCancelar.addEventListener('click', () => cancelarFormSubtipo(tipoId));
+        // Adicionar event listener ao form recém-criado
+        const form = document.getElementById(`form-subtipo-${tipoId}`);
+        if (form) {
+          form.addEventListener('submit', (e) => salvarSubtipoInline(e, tipoId));
         }
       }
       
@@ -820,6 +773,14 @@
       // Event listeners estáticos (CSP compliance)
       document.getElementById('btnFecharModalSubtipos')?.addEventListener('click', fecharModalSubtipos);
       document.getElementById('btnCancelarEdicao')?.addEventListener('click', cancelarEdicao);
+      
+      // Expor funções no escopo global para que events.js possa encontrá-las via data-action
+      window.toggleSubtipos = window.toggleSubtipos; // Já foi exposta acima
+      window.confirmarExclusao = confirmarExclusao;
+      window.mostrarFormNovoSubtipo = mostrarFormNovoSubtipo;
+      window.editarSubtipoInline = editarSubtipoInline;
+      window.excluirSubtipoInline = excluirSubtipoInline;
+      window.cancelarFormSubtipo = cancelarFormSubtipo;
     </script>
   </body>
 </html>
