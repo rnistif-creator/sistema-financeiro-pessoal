@@ -978,14 +978,22 @@ async def register(user_data: UserCreate, db: Session = Depends(get_db)):
     """
     Registra um novo usuário.
     """
-    # Verifica se email já existe
-    existing_user = get_user_by_email(db, user_data.email)
-    if existing_user:
-        raise HTTPException(status_code=400, detail="Não foi possível completar o registro")
-    
-    # Cria novo usuário
-    new_user = create_user(db, user_data)
-    return new_user
+    try:
+        # Verifica se email já existe
+        existing_user = get_user_by_email(db, user_data.email)
+        if existing_user:
+            raise HTTPException(status_code=400, detail="Email já cadastrado")
+        
+        # Cria novo usuário
+        new_user = create_user(db, user_data)
+        return new_user
+    except ValueError as e:
+        # Erros de validação de senha
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        # Log do erro real para debug
+        print(f"Erro ao criar usuário: {type(e).__name__}: {str(e)}")
+        raise HTTPException(status_code=500, detail="Erro ao criar conta. Tente novamente.")
 
 @app.post("/auth/login", response_model=Token)
 async def login(
