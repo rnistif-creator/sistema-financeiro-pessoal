@@ -31,6 +31,11 @@ from app.middleware import (
     get_current_user, get_current_admin_user, get_current_active_user,
     get_optional_user, ensure_subscription, ensure_admin_ip_allowed
 )
+from app.security_notifications import (
+    send_login_alert_sms,
+    send_login_alert_whatsapp,
+    send_login_alert_email,
+)
 
 # Configuração dos caminhos
 BASE_DIR = Path(__file__).resolve().parent
@@ -205,6 +210,22 @@ class Meta(Base):
     descricao = Column(String(500), nullable=True)
     created_at = Column(Date, nullable=False)
     updated_at = Column(Date, nullable=True)
+
+# ============================================================================
+# SEGURANÇA: RASTREAMENTO DE TENTATIVAS DE LOGIN
+# ============================================================================
+
+class LoginAttempt(Base):
+    __tablename__ = "login_attempts"
+    id = Column(Integer, primary_key=True, index=True)
+    email = Column(String(255), nullable=False, index=True)
+    user_id = Column(Integer, nullable=True, index=True)  # NULL se usuário não existir
+    ip_address = Column(String(45), nullable=False)  # Suporta IPv6
+    user_agent = Column(String(500), nullable=True)
+    success = Column(Boolean, nullable=False, default=False)
+    is_admin_attempt = Column(Boolean, nullable=False, default=False)
+    created_at = Column(DateTime, nullable=False, default=datetime.utcnow)
+    blocked_until = Column(DateTime, nullable=True)  # Bloqueio temporário
 
 engine = create_engine(DATABASE_URL, echo=False, future=True)
 SessionLocal = sessionmaker(bind=engine, autocommit=False, autoflush=False, future=True)
@@ -1595,6 +1616,7 @@ async def admin_login_page(request: Request, next: Optional[str] = "/"):
 
 @app.post("/auth/admin/login", response_model=Token)
 async def admin_login(
+    request: Request,
     response: Response,
     login_data: LoginRequest,
     db: Session = Depends(get_db)
@@ -1602,9 +1624,47 @@ async def admin_login(
     """
     Autentica administrador e retorna token JWT.
     Verifica se o usuário possui flag admin=True.
+    Envia notificações de segurança e aplica bloqueio após 4 tentativas falhas.
     """
+    from app.security_notifications import check_and_notify_login_attempt
+    
+    # Obter IP e User-Agent
+    client_ip = request.client.host if request.client else "unknown"
+    fwd = request.headers.get("x-forwarded-for") or request.headers.get("X-Forwarded-For")
+    if fwd:
+        client_ip = fwd.split(',')[0].strip()
+    user_agent = request.headers.get("user-agent", "")
+    
+    # Verificar se conta está bloqueada por tentativas anteriores
+    cutoff = datetime.utcnow() - timedelta(minutes=30)
+    blocked_attempt = db.query(LoginAttempt).filter(
+        LoginAttempt.email == login_data.email,
+        LoginAttempt.is_admin_attempt == True,
+        LoginAttempt.blocked_until != None,
+        LoginAttempt.blocked_until > datetime.utcnow()
+    ).order_by(LoginAttempt.blocked_until.desc()).first()
+    
+    if blocked_attempt:
+        remaining = (blocked_attempt.blocked_until - datetime.utcnow()).total_seconds() / 60
+        raise HTTPException(
+            status_code=429,
+            detail=f"Conta temporariamente bloqueada devido a múltiplas tentativas falhas. Tente novamente em {int(remaining)} minutos."
+        )
+    
     # Autentica usuário
     user = authenticate_user(db, login_data.email, login_data.password)
+    success = user is not None and user.ativo and user.admin
+    
+    # Registrar tentativa e enviar notificações
+    attempt_status = check_and_notify_login_attempt(
+        db=db,
+        email=login_data.email,
+        ip=client_ip,
+        user_agent=user_agent,
+        success=success,
+        is_admin=True
+    )
+    
     if not user:
         raise HTTPException(
             status_code=401,
@@ -1622,6 +1682,13 @@ async def admin_login(
         raise HTTPException(
             status_code=403,
             detail="Acesso restrito a administradores"
+        )
+    
+    # Se foi bloqueado nesta tentativa, informar
+    if attempt_status["blocked"]:
+        raise HTTPException(
+            status_code=429,
+            detail="Muitas tentativas falhas. Conta bloqueada temporariamente por 30 minutos."
         )
     
     # Cria token de acesso com id e email
@@ -1714,6 +1781,47 @@ async def admin_clientes_page(
         "admin_clientes.html",
         get_template_context(request)
     )
+
+# ======================
+# ADMIN: Teste de Alertas
+# ======================
+
+class TestAlertRequest(BaseModel):
+    channel: str = Field(..., pattern="^(sms|whatsapp|email)$")
+    message: Optional[str] = None
+
+@app.post("/api/admin/test-alert")
+async def api_admin_test_alert(
+    req: TestAlertRequest,
+    request: Request,
+    _ip_ok: bool = Depends(ensure_admin_ip_allowed),
+    current_user: User = Depends(get_current_admin_user),
+):
+    client_ip = request.headers.get("x-forwarded-for") or (request.client.host if request.client else "unknown")
+    user_agent = request.headers.get("user-agent", "")
+    target_email = os.getenv("ADMIN_ALERT_EMAIL", current_user.email)
+    target_phone = os.getenv("ADMIN_ALERT_PHONE")
+    target_whatsapp = os.getenv("ADMIN_ALERT_WHATSAPP")
+    message = req.message or "Teste de alerta de segurança (DOMO360)"
+
+    results: Dict[str, Any] = {}
+    try:
+        if req.channel == "sms":
+            if not target_phone:
+                return JSONResponse(status_code=400, content={"detail": "ADMIN_ALERT_PHONE não configurado"})
+            ok = send_login_alert_sms(target_phone, current_user.email, client_ip, success=False)
+            results["sms"] = ok
+        elif req.channel == "whatsapp":
+            if not target_whatsapp:
+                return JSONResponse(status_code=400, content={"detail": "ADMIN_ALERT_WHATSAPP não configurado"})
+            ok = send_login_alert_whatsapp(target_whatsapp, current_user.email, client_ip, success=False)
+            results["whatsapp"] = ok
+        else:
+            ok = send_login_alert_email(target_email, current_user.email, client_ip, user_agent, success=False)
+            results["email"] = ok
+        return {"ok": True, "results": results}
+    except Exception as e:
+        return JSONResponse(status_code=500, content={"detail": str(e)})
 
 @app.get("/admin/alterar-senha")
 async def admin_alterar_senha_page(
