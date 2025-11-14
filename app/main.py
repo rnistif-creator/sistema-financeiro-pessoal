@@ -315,7 +315,7 @@ else:
 RATE_LIMIT_WINDOW_SECONDS = 60
 RATE_LIMIT_MAX_ATTEMPTS = 10
 _rate_memory = defaultdict(list)
-SENSITIVE_RATE_PATHS = {"/auth/login", "/auth/change-password", "/auth/register"}
+SENSITIVE_RATE_PATHS = {"/auth/login", "/auth/change-password", "/auth/register", "/admin/alterar-senha"}
 
 def _rate_cleanup(now_ts: float, window: int, arr):
     while arr and arr[0] < now_ts - window:
@@ -344,12 +344,20 @@ async def security_headers_and_rate_limit(request: Request, call_next):
     
     # CSP: habilita nonce e, temporariamente, 'unsafe-inline' para compatibilidade com handlers inline
     # TODO: remover 'unsafe-inline' após migrar handlers inline para addEventListener
+    # Ajuste CSP: permitir carregamento de fontes Google quando usadas no login (staging)
+    # Em produção pode-se optar por auto-hospedar para remover domínios externos.
+    font_sources = "'self' data: https://fonts.gstatic.com"  # data: para inline SVG / PNG base64 em <img>
+    style_sources = f"'self' 'unsafe-inline' https://fonts.googleapis.com"
+    script_sources = f"'self' 'nonce-{nonce}' 'unsafe-inline' https://cdn.jsdelivr.net"
     csp = (
-        f"default-src 'self'; "
-        # Temporário: permitir CDN do Chart.js até fazermos vendor local
-        f"script-src 'self' 'nonce-{nonce}' 'unsafe-inline' https://cdn.jsdelivr.net; "
-        f"style-src 'self' 'unsafe-inline'; "
-        f"img-src 'self' data:; connect-src 'self'; manifest-src 'self';"
+        "default-src 'self'; "
+        f"script-src {script_sources}; "
+        f"style-src {style_sources}; "
+        f"font-src {font_sources}; "
+        "img-src 'self' data:; "
+        "connect-src 'self'; "
+        "manifest-src 'self'; "
+        "frame-ancestors 'none'; "
     )
     response.headers['Content-Security-Policy'] = csp
     response.headers['X-Frame-Options'] = 'DENY'
@@ -1634,10 +1642,19 @@ async def admin_login(
     user.ultimo_acesso = datetime.utcnow()
     db.commit()
     
+    from app.auth import verify_password
+    must_change = False
+    # Detectar senha padrão insegura e exigir troca imediata
+    try:
+        if verify_password('123456', user.senha_hash):
+            must_change = True
+    except Exception:
+        pass
     return Token(
         access_token=access_token,
         token_type="bearer",
-        user=UserOut.from_orm(user)
+        user=UserOut.from_orm(user),
+        require_password_change=must_change
     )
 
 # ======================
@@ -1649,6 +1666,12 @@ async def admin_home(
     _ip_ok: bool = Depends(ensure_admin_ip_allowed),
     current_user: User = Depends(get_current_admin_user),
 ):
+    from app.auth import verify_password
+    try:
+        if verify_password('123456', current_user.senha_hash):
+            return RedirectResponse(url='/admin/alterar-senha', status_code=303)
+    except Exception:
+        pass
     return RedirectResponse(url="/admin/clientes", status_code=302)
 
 class AdminClienteOut(BaseModel):
@@ -1680,10 +1703,72 @@ async def admin_clientes_page(
     _ip_ok: bool = Depends(ensure_admin_ip_allowed),
     current_user: User = Depends(get_current_admin_user),
 ):
+    # Se senha padrão, redirecionar para alterar senha
+    from app.auth import verify_password
+    try:
+        if verify_password('123456', current_user.senha_hash):
+            return RedirectResponse(url='/admin/alterar-senha', status_code=303)
+    except Exception:
+        pass
     return templates.TemplateResponse(
         "admin_clientes.html",
         get_template_context(request)
     )
+
+@app.get("/admin/alterar-senha")
+async def admin_alterar_senha_page(
+    request: Request,
+    _ip_ok: bool = Depends(ensure_admin_ip_allowed),
+    current_user: User = Depends(get_current_admin_user),
+    success: Optional[str] = None,
+    error: Optional[str] = None,
+):
+    return templates.TemplateResponse(
+        "admin_alterar_senha.html",
+        get_template_context(request, success=success, error=error)
+    )
+
+@app.post("/admin/alterar-senha")
+async def admin_alterar_senha_submit(
+    request: Request,
+    _ip_ok: bool = Depends(ensure_admin_ip_allowed),
+    current_user: User = Depends(get_current_admin_user),
+    db: Session = Depends(get_db),
+):
+    form = await request.form()
+    senha_atual = (form.get("senha_atual") or "").strip()
+    nova_senha = (form.get("nova_senha") or "").strip()
+    confirmar = (form.get("confirmar_senha") or "").strip()
+
+    if not senha_atual or not nova_senha or not confirmar:
+        return templates.TemplateResponse(
+            "admin_alterar_senha.html",
+            get_template_context(request, error="Preencha todos os campos."),
+            status_code=400
+        )
+    if nova_senha != confirmar:
+        return templates.TemplateResponse(
+            "admin_alterar_senha.html",
+            get_template_context(request, error="Confirmação não confere."),
+            status_code=400
+        )
+    try:
+        from app.auth import change_admin_password
+        change_admin_password(db, current_user.id, senha_atual, nova_senha)
+        # Opcional: invalidar sessão atual forçando novo login? Mantemos para comodidade.
+        return RedirectResponse(url="/admin/alterar-senha?success=1", status_code=303)
+    except ValueError as ve:
+        return templates.TemplateResponse(
+            "admin_alterar_senha.html",
+            get_template_context(request, error=str(ve)),
+            status_code=400
+        )
+    except Exception:
+        return templates.TemplateResponse(
+            "admin_alterar_senha.html",
+            get_template_context(request, error="Falha inesperada."),
+            status_code=500
+        )
 
 @app.get("/api/admin/clientes", response_model=AdminClientesResponse)
 async def api_admin_clientes(

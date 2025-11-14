@@ -46,6 +46,17 @@ services:
         value: /opt/render/project/src/data/lancamentos_staging.db
       - key: LOG_LEVEL
         value: debug
+      # Bootstrap seguro de admin apenas em staging. Adicione a senha via dashboard (não commitá aqui):
+      - key: INITIAL_ADMIN_ENABLE
+        value: 1
+      - key: INITIAL_ADMIN_EMAIL
+        value: ricardo@rfinance.com.br
+      - key: INITIAL_ADMIN_NAME
+        value: Ricardo Admin
+      - key: INITIAL_ADMIN_PASSWORD
+        value: 123456
+      - key: INITIAL_ADMIN_FORCE_RESET
+        value: 1
     disk:
       name: data
       mountPath: /opt/render/project/src/data

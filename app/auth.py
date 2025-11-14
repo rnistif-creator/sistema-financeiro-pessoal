@@ -53,6 +53,7 @@ class Token(BaseModel):
     access_token: str
     token_type: str = "bearer"
     user: UserOut
+    require_password_change: bool = False
 
 class TokenData(BaseModel):
     user_id: Optional[int] = None
@@ -252,3 +253,51 @@ def list_users(db: Session, skip: int = 0, limit: int = 100, only_active: bool =
         query = query.filter(User.ativo == True)
     
     return query.offset(skip).limit(limit).all()
+
+# ============================================================================
+# EXTENSÕES PARA TROCA DE SENHA ADMIN
+# ============================================================================
+
+def password_in_use_by_other_non_admin(db: Session, password: str, exclude_user_id: int) -> bool:
+    """Verifica se a senha proposta está em uso por algum outro usuário não-admin.
+    NOTA: bcrypt possui salt, então precisamos verificar provando a senha contra cada hash.
+    Retorna True se encontrar outro usuário não-admin usando a mesma senha clara.
+    Escopo pequeno espera-se número limitado de usuários, aceitável iterar.
+    """
+    from app.main import User
+    candidates = db.query(User).filter(User.id != exclude_user_id, User.admin == False, User.ativo == True).all()
+    for u in candidates:
+        try:
+            if verify_password(password, u.senha_hash):
+                return True
+        except Exception:
+            continue
+    return False
+
+def change_admin_password(db: Session, user_id: int, current_password: str, new_password: str):
+    """Altera senha de usuário admin com validações de segurança.
+    Regras:
+    - Usuário deve existir e ser admin.
+    - current_password deve corresponder ao hash atual.
+    - new_password deve atender validate_password_strength (mínimo já reforçado externamente se desejado).
+    - new_password não pode ser igual à senha atual.
+    - new_password não pode estar em uso por outro usuário ativo não-admin.
+    """
+    from app.main import User
+    user = db.query(User).filter(User.id == user_id).first()
+    if not user or not user.admin or not user.ativo:
+        raise ValueError("Usuário inválido ou não autorizado")
+    if not verify_password(current_password, user.senha_hash):
+        raise ValueError("Senha atual incorreta")
+    if current_password == new_password:
+        raise ValueError("Nova senha não pode ser igual à senha atual")
+    # Reforçar requisitos mais fortes que mínimo (>=12)
+    if len(new_password) < 12 or not validate_password_strength(new_password):
+        raise ValueError("Senha fraca: mínimo 12 caracteres, maiúscula, minúscula, dígito e símbolo")
+    if password_in_use_by_other_non_admin(db, new_password, exclude_user_id=user.id):
+        raise ValueError("Senha já utilizada por outro usuário. Escolha uma diferente.")
+    # Atualizar hash
+    user.senha_hash = get_password_hash(new_password)
+    db.commit()
+    db.refresh(user)
+    return user

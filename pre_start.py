@@ -6,6 +6,73 @@ Garante que diretórios necessários existem antes de iniciar o servidor
 import os
 import sys
 from pathlib import Path
+from datetime import datetime
+
+# Opcional: criação automática de admin em ambientes (staging/produção) usando variáveis de ambiente.
+# Para ativar defina: INITIAL_ADMIN_EMAIL, INITIAL_ADMIN_PASSWORD, INITIAL_ADMIN_NAME (opcional)
+def maybe_create_initial_admin():
+    # Regras de segurança:
+    # 1. Apenas roda em ENVIRONMENT=staging ou dev.
+    # 2. Requer flag explícita INITIAL_ADMIN_ENABLE=1.
+    # 3. Exige email e password.
+    # 4. Limpa variáveis sensíveis da memória do processo após uso.
+    env = os.getenv("ENVIRONMENT", "").lower()
+    if env not in {"staging", "dev"}:
+        return
+    if os.getenv("INITIAL_ADMIN_ENABLE") != "1":
+        return
+    email = os.getenv("INITIAL_ADMIN_EMAIL")
+    password = os.getenv("INITIAL_ADMIN_PASSWORD")
+    force_reset = os.getenv("INITIAL_ADMIN_FORCE_RESET") == "1"
+    name = os.getenv("INITIAL_ADMIN_NAME", "Admin")
+    if not email or not password:
+        return
+    try:
+        # Importar apenas se variáveis presentes para evitar custo no cold start
+        from app.main import SessionLocal, User
+        from app.auth import get_user_by_email, create_user, UserCreate, get_password_hash, verify_password
+        db = SessionLocal()
+        try:
+            user = get_user_by_email(db, email)
+            if user:
+                # Promover se necessário
+                if not user.admin:
+                    user.admin = True
+                    db.commit()
+                    print(f"✓ Usuário existente promovido a admin: {email}")
+                # Forçar reset para senha padrão fraca se solicitado
+                if force_reset or verify_password('123456', user.senha_hash) or password == '123456':
+                    if password == '123456' or force_reset:
+                        user.senha_hash = get_password_hash('123456')
+                        db.commit()
+                        print("✓ Senha do admin definida para padrão temporário '123456' (troca obrigatória)")
+            else:
+                if password == '123456':
+                    # Criar usuário ignorando força (senha temporária obrigatória)
+                    hashed = get_password_hash('123456')
+                    new_user = User(
+                        email=email,
+                        nome=name,
+                        senha_hash=hashed,
+                        admin=True,
+                        ativo=True,
+                        created_at=datetime.utcnow()
+                    )
+                    db.add(new_user)
+                    db.commit()
+                    db.refresh(new_user)
+                    print(f"✓ Admin inicial criado com senha temporária fraca '123456': {new_user.email} (id={new_user.id})")
+                else:
+                    # Caminho normal (senha forte exige requisitos)
+                    created = create_user(db, UserCreate(email=email, nome=name, password=password), is_admin=True)
+                    print(f"✓ Admin inicial criado: {created.email} (id={created.id})")
+        finally:
+            db.close()
+            # Limpar variáveis sensíveis para reduzir chance de exposição acidental em logs futuros
+            for var in ("INITIAL_ADMIN_PASSWORD", "INITIAL_ADMIN_EMAIL", "INITIAL_ADMIN_NAME"):
+                os.environ.pop(var, None)
+    except Exception as e:
+        print(f"✗ Falha ao criar admin inicial: {e}")
 
 def setup_directories():
     """Cria diretórios necessários se não existirem"""
@@ -78,4 +145,6 @@ if __name__ == "__main__":
     check_database_url()
     
     print("=" * 60)
+    # Criar admin inicial se configurado
+    maybe_create_initial_admin()
     print("✓ Pronto para iniciar o servidor\n")
