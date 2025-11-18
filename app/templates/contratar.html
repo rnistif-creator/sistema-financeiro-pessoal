@@ -1,0 +1,86 @@
+<!doctype html>
+<html lang="pt-br">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Contratar Plano</title>
+  <link rel="stylesheet" href="/static/components.css">
+  <style>
+    :root { --bg:#0f172a; --card:#1e293b; --muted:#94a3b8; --text:#e5e7eb; --primary:#22d3ee; }
+    body{ background:var(--bg); color:var(--text); font-family: Inter, system-ui, sans-serif; padding:24px; }
+    .container{ max-width: 1100px; margin:0 auto; }
+    .grid{ display:grid; grid-template-columns: repeat(auto-fit, minmax(260px,1fr)); gap:14px; }
+    .card{ background:var(--card); border:1px solid rgba(148,163,184,.15); border-radius:12px; padding:16px; }
+    h1{ font-size:26px; font-weight:800; margin-bottom:12px }
+    h2{ font-size:18px; font-weight:700; margin:8px 0 }
+    .price{ font-size:24px; font-weight:800; color:#22c55e }
+    ul{ margin:10px 0 0 18px }
+    button{ margin-top:12px; padding:10px 12px; border-radius:10px; border:1px solid rgba(148,163,184,.25); background:#0ea5e9; color:white; cursor:pointer }
+    .muted{ color:var(--muted) }
+  </style>
+</head>
+<body>
+  {% include '_app_sidebar.html' %}
+  <div class="container">
+    <h1>Contratar Plano</h1>
+    <p class="muted">Plano gratuito com limites atuais:</p>
+    <ul class="muted">
+      <li>Lançamentos por mês: {{ limits.lancamentos_mensal }}</li>
+      <li>Tipos: {{ limits.tipos }}</li>
+      <li>Subtipos: {{ limits.subtipos }}</li>
+    </ul>
+
+    <div style="height:12px"></div>
+
+    <div class="grid">
+      <div class="card">
+        <h2>Mensal</h2>
+        <div class="price">{{ prices.mensal }}</div>
+        <ul>
+          <li>Sem limites de uso</li>
+          <li>Suporte por e-mail</li>
+        </ul>
+        <button data-plan="mensal">Contratar Mensal</button>
+      </div>
+      <div class="card">
+        <h2>Trimestral</h2>
+        <div class="price">{{ prices.trimestral }}</div>
+        <ul>
+          <li>Sem limites de uso</li>
+          <li>Economia no período</li>
+        </ul>
+        <button data-plan="trimestral">Contratar Trimestral</button>
+      </div>
+      <div class="card">
+        <h2>Anual</h2>
+        <div class="price">{{ prices.anual }}</div>
+        <ul>
+          <li>Sem limites de uso</li>
+          <li>Melhor custo-benefício</li>
+        </ul>
+        <button data-plan="anual">Contratar Anual</button>
+      </div>
+    </div>
+
+    <p class="muted" style="margin-top:14px">Pagamento simulado no ambiente local; no ambiente de testes, integraremos provedor real.</p>
+  </div>
+
+  <script{% if csp_nonce %} nonce="{{ csp_nonce }}"{% endif %}>
+    document.querySelectorAll('button[data-plan]').forEach(btn => {
+      btn.addEventListener('click', async () => {
+        const plano = btn.getAttribute('data-plan');
+        try{
+          const res = await fetch('/api/assinatura/contratar', {
+            method:'POST', headers:{'Content-Type':'application/json'},
+            body: JSON.stringify({ plano })
+          });
+          if(!res.ok) throw new Error('Falha ao contratar');
+          const data = await res.json();
+          alert('Plano ativado! Vencimento: ' + (data.proximo_vencimento || '—'));
+          window.location.href = '/dashboard';
+        }catch(e){ alert('Erro: ' + e.message); }
+      });
+    });
+  </script>
+</body>
+</html>

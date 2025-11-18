@@ -326,6 +326,23 @@ def get_brand_logo_url() -> str:
     # Último recurso
     return "/static/icons/icon-192x192.png"
 
+# ================= PLANOS / ASSINATURA: AJUDANTES =====================
+
+def add_months(d: date, months: int) -> date:
+    y = d.year + (d.month - 1 + months) // 12
+    m = (d.month - 1 + months) % 12 + 1
+    # Ajustar dia para o último dia do mês quando necessário
+    from calendar import monthrange
+    day = min(d.day, monthrange(y, m)[1])
+    return date(y, m, day)
+
+def get_free_limits() -> Dict[str, int]:
+    return {
+        "lancamentos_mensal": int(os.getenv("FREE_MAX_LANCAMENTOS_MES", "100")),
+        "tipos": int(os.getenv("FREE_MAX_TIPOS", "10")),
+        "subtipos": int(os.getenv("FREE_MAX_SUBTIPOS", "30")),
+    }
+
 # ================= SECURITY / RATE LIMIT / HEADERS =====================
 ENVIRONMENT = os.getenv("ENVIRONMENT", "development").lower()
 ALLOWED_ORIGINS_ENV = os.getenv("ALLOWED_ORIGINS", "")
@@ -1771,6 +1788,71 @@ class AdminClientesResponse(BaseModel):
     total_pages: int
     counts_by_status: Dict[str, int]
 
+# ======================
+# CONTRATAÇÃO (PLANOS)
+# ======================
+
+@app.get("/contratar")
+async def contratar_page(
+    request: Request,
+    current_user: User = Depends(get_current_active_user)
+):
+    # Preços podem vir de envs
+    prices = {
+        "mensal": os.getenv("PRICE_MONTHLY", "R$ 19,90"),
+        "trimestral": os.getenv("PRICE_QUARTERLY", "R$ 49,90"),
+        "anual": os.getenv("PRICE_YEARLY", "R$ 179,00"),
+    }
+    limits = get_free_limits()
+    return templates.TemplateResponse(
+        "contratar.html",
+        get_template_context(request, prices=prices, limits=limits)
+    )
+
+class ContratarRequest(BaseModel):
+    plano: str  # mensal | trimestral | anual
+
+@app.post("/api/assinatura/contratar")
+async def contratar_assinatura(
+    req: ContratarRequest,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_active_user)
+):
+    plano = req.plano.lower().strip()
+    if plano not in ("mensal", "trimestral", "anual"):
+        raise HTTPException(status_code=400, detail="Plano inválido")
+
+    hoje = date.today()
+    sub = db.query(Assinatura).filter(Assinatura.usuario_id == current_user.id).first()
+    if not sub:
+        sub = Assinatura(
+            usuario_id=current_user.id,
+            status="ativa",
+            data_inicio=hoje,
+            created_at=hoje
+        )
+        db.add(sub)
+
+    sub.status = "ativa"
+    sub.data_inicio = sub.data_inicio or hoje
+    if plano == "mensal":
+        sub.proximo_vencimento = add_months(hoje, 1)
+        sub.valor_mensal = 19.90
+    elif plano == "trimestral":
+        sub.proximo_vencimento = add_months(hoje, 3)
+        sub.valor_mensal = 49.90 / 3
+    else:
+        sub.proximo_vencimento = add_months(hoje, 12)
+        sub.valor_mensal = 179.00 / 12
+
+    db.commit()
+    db.refresh(sub)
+    return {
+        "ok": True,
+        "status": sub.status,
+        "proximo_vencimento": sub.proximo_vencimento.isoformat() if sub.proximo_vencimento else None
+    }
+
 @app.get("/admin/clientes")
 async def admin_clientes_page(
     request: Request,
@@ -2366,6 +2448,16 @@ async def listar_tipos(current_user: User = Depends(get_current_active_user), db
 @app.post("/api/tipos", response_model=TipoLancamentoOut)
 async def criar_tipo(tipo: TipoLancamentoIn, current_user: User = Depends(ensure_subscription), db: Session = Depends(get_db)):
     from datetime import date, timedelta
+    # Limites do plano gratuito
+    try:
+        sub = db.query(Assinatura).filter(Assinatura.usuario_id == current_user.id).first()
+        if not sub or (sub.status == 'trial'):
+            limits = get_free_limits()
+            total_tipos = db.query(TipoLancamento).filter(TipoLancamento.usuario_id == current_user.id).count()
+            if total_tipos >= limits["tipos"]:
+                raise HTTPException(status_code=402, detail={"message": "Limite de tipos no plano gratuito atingido", "limit": "tipos", "max": limits["tipos"], "upgrade_url": "/contratar"})
+    except Exception:
+        pass
     
     # Verificar se já existe um tipo com o mesmo nome e natureza para este usuário
     tipo_existente = db.query(TipoLancamento).filter(
@@ -2449,6 +2541,16 @@ async def listar_todos_subtipos(current_user: User = Depends(get_current_active_
 async def criar_subtipo(tipo_id: int, subtipo: SubtipoLancamentoIn, current_user: User = Depends(ensure_subscription), db: Session = Depends(get_db)):
     """Cria um novo subtipo para um tipo específico"""
     from datetime import date
+    # Limites do plano gratuito
+    try:
+        sub = db.query(Assinatura).filter(Assinatura.usuario_id == current_user.id).first()
+        if not sub or (sub.status == 'trial'):
+            limits = get_free_limits()
+            total_subtipos = db.query(SubtipoLancamento).filter(SubtipoLancamento.usuario_id == current_user.id).count()
+            if total_subtipos >= limits["subtipos"]:
+                raise HTTPException(status_code=402, detail={"message": "Limite de subtipos no plano gratuito atingido", "limit": "subtipos", "max": limits["subtipos"], "upgrade_url": "/contratar"})
+    except Exception:
+        pass
     
     # Verifica se o tipo existe e pertence ao usuário
     tipo = db.query(TipoLancamento).filter(
@@ -2556,6 +2658,24 @@ async def criar_lancamento(
 ):
     from datetime import date
     import traceback
+    # Limites do plano gratuito (por mês)
+    try:
+        sub = db.query(Assinatura).filter(Assinatura.usuario_id == current_user.id).first()
+        if not sub or (sub.status == 'trial'):
+            limits = get_free_limits()
+            today = date.today()
+            month_start = date(today.year, today.month, 1)
+            # próximo mês início
+            next_month = add_months(month_start, 1)
+            total_lanc = db.query(Lancamento).filter(
+                Lancamento.usuario_id == current_user.id,
+                Lancamento.data_lancamento >= month_start,
+                Lancamento.data_lancamento < next_month
+            ).count()
+            if total_lanc >= limits["lancamentos_mensal"]:
+                raise HTTPException(status_code=402, detail={"message": "Limite mensal de lançamentos no plano gratuito atingido", "limit": "lancamentos_mensal", "max": limits["lancamentos_mensal"], "upgrade_url": "/contratar"})
+    except Exception:
+        pass
     
     try:
         print(f"\n=== Recebendo lançamento ===")
