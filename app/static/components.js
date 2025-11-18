@@ -231,6 +231,17 @@ async function fetchWithLoading(url, options = {}, showOverlay = false) {
     }
 
     const response = await fetch(url, { ...fetchOptions, signal: effectiveSignal });
+    // Tratamento central de limites do gratuito -> redireciona para contratar
+    if (response.status === 402) {
+      try {
+        const errorData = await response.json();
+        const reason = encodeURIComponent(errorData?.message || 'Limite do plano gratuito atingido');
+        window.location.href = `/contratar?reason=${reason}`;
+      } catch {
+        window.location.href = '/contratar';
+      }
+      throw new Error('Limite do plano gratuito atingido');
+    }
     
     if (!response.ok) {
       let errorMessage = `Erro ${response.status}`;

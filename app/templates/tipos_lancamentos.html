@@ -332,6 +332,18 @@
       async function fetchWithLogging(url, options = {}) {
         try {
           const response = await fetch(url, options);
+          // 402: limites do gratuito → direciona para contratar
+          if (response.status === 402) {
+            try {
+              const j = await response.json();
+              const reason = encodeURIComponent(j?.message || 'Limite do plano gratuito atingido');
+              window.location.href = `/contratar?reason=${reason}`;
+              return Promise.reject(new Error(j?.message || 'Limite do plano gratuito atingido'));
+            } catch (_) {
+              window.location.href = `/contratar`;
+              return Promise.reject(new Error('Limite do plano gratuito atingido'));
+            }
+          }
           const data = await response.json();
           console.log('API Response:', { url, response, data });
           if (!response.ok) {
@@ -516,6 +528,10 @@
           });
           
           if (!response.ok) {
+            if (response.status === 402) {
+              try { const j = await response.json(); window.location.href = `/contratar?reason=${encodeURIComponent(j?.message||'Limite do plano gratuito atingido')}`; } catch(_) { window.location.href = '/contratar'; }
+              return;
+            }
             const err = await response.json();
             throw new Error(err.detail || 'Erro ao criar subtipo');
           }
@@ -561,6 +577,10 @@
           });
 
           if (!response.ok) {
+            if (response.status === 402) {
+              try { const j = await response.json(); window.location.href = `/contratar?reason=${encodeURIComponent(j?.message||'Limite do plano gratuito atingido')}`; } catch(_) { window.location.href = '/contratar'; }
+              return;
+            }
             const err = await response.json();
             throw new Error(err.detail || 'Erro ao editar subtipo');
           }

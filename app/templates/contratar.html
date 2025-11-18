@@ -23,6 +23,9 @@
   {% include '_app_sidebar.html' %}
   <div class="container">
     <h1>Contratar Plano</h1>
+    <div id="reasonBox" class="card" style="display:none; border-color:rgba(245,158,11,.35); margin-bottom:12px">
+      <div class="muted" id="reasonText"></div>
+    </div>
     <p class="muted">Plano gratuito com limites atuais:</p>
     <ul class="muted">
       <li>Lançamentos por mês: {{ limits.lancamentos_mensal }}</li>
@@ -66,6 +69,16 @@
   </div>
 
   <script{% if csp_nonce %} nonce="{{ csp_nonce }}"{% endif %}>
+    (function(){
+      const params = new URLSearchParams(window.location.search);
+      const reason = params.get('reason');
+      if(reason){
+        const box = document.getElementById('reasonBox');
+        const txt = document.getElementById('reasonText');
+        txt.textContent = decodeURIComponent(reason);
+        box.style.display = 'block';
+      }
+    })();
     document.querySelectorAll('button[data-plan]').forEach(btn => {
       btn.addEventListener('click', async () => {
         const plano = btn.getAttribute('data-plan');
