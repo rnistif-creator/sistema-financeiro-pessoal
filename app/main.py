@@ -1880,6 +1880,29 @@ async def admin_alterar_senha_submit(
             status_code=500
         )
 
+    # ======================
+    # ADMIN: Administração de usuários (consulta)
+    # ======================
+
+    @app.get("/api/admin/admins/count")
+    async def api_admin_admins_count(
+        _ip_ok: bool = Depends(ensure_admin_ip_allowed),
+        current_user: User = Depends(get_current_admin_user),
+        db: Session = Depends(get_db),
+    ):
+        total = db.query(User).filter(User.admin == True).count()
+        return {"count": total}
+
+    @app.get("/api/admin/admins")
+    async def api_admin_admins_list(
+        _ip_ok: bool = Depends(ensure_admin_ip_allowed),
+        current_user: User = Depends(get_current_admin_user),
+        db: Session = Depends(get_db),
+    ):
+        admins = db.query(User).filter(User.admin == True).all()
+        emails = [u.email for u in admins]
+        return {"count": len(emails), "emails": emails}
+
 @app.get("/api/admin/clientes", response_model=AdminClientesResponse)
 async def api_admin_clientes(
     only_active: bool = True,
