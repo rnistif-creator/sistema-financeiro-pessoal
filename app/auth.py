@@ -21,7 +21,9 @@ if ENVIRONMENT == "production" and not _ENV_SECRET:
     raise RuntimeError("SECRET_KEY não definido em ambiente de produção")
 SECRET_KEY = _ENV_SECRET or secrets.token_urlsafe(32)
 ALGORITHM = "HS256"
-ACCESS_TOKEN_EXPIRE_MINUTES = 60 * 24 * 7  # 7 dias
+# Tempo de expiração do token/sessão (minutos)
+# Requisito: sessão ativa por 30 minutos (admin e usuário)
+ACCESS_TOKEN_EXPIRE_MINUTES = 30
 
 # ============================================================================
 # MODELOS PYDANTIC

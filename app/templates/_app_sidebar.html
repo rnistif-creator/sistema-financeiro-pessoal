@@ -633,6 +633,121 @@ async function sairDoSistema() {
 }
 </script>
 
+<!-- Sessão: aviso 1 min antes e logout automático aos 30 min -->
+<script{%- if csp_nonce %} nonce="{{ csp_nonce }}"{%- endif %}>
+(function(){
+  let warned = false;
+  let warnTimer = null;
+  let logoutTimer = null;
+  let countdownInterval = null;
+
+  async function scheduleFromServer() {
+    try{
+      const r = await fetch(`${API_BASE}/auth/session-remaining`, { credentials: 'same-origin' });
+      if(!r.ok){
+        if(r.status === 401){
+          await doAutoLogout();
+          return;
+        }
+        return;
+      }
+      const j = await r.json();
+      const seconds = Number(j?.seconds || 0);
+      clearTimers();
+      if(seconds <= 0){
+        // expirado
+        await doAutoLogout();
+        return;
+      }
+      
+      // Mostrar contagem regressiva se restam < 2 minutos
+      if(seconds < 120){
+        showCountdownBanner(seconds);
+      } else {
+        hideCountdownBanner();
+      }
+      
+      // agendar aviso 1 min antes
+      const warnIn = Math.max(0, (seconds - 60) * 1000);
+      const logoutIn = seconds * 1000;
+      warnTimer = setTimeout(()=>{
+        if(!warned){
+          warned = true;
+          const msg = 'Sua sessão vai expirar em 1 minuto. Salve seu trabalho.';
+          if(window.Toast) Toast.warning(msg); else alert(msg);
+        }
+      }, warnIn);
+      logoutTimer = setTimeout(()=>{ doAutoLogout(); }, logoutIn);
+    }catch(e){ /* silencioso */ }
+  }
+
+  function clearTimers(){
+    if(warnTimer){ clearTimeout(warnTimer); warnTimer = null; }
+    if(logoutTimer){ clearTimeout(logoutTimer); logoutTimer = null; }
+    if(countdownInterval){ clearInterval(countdownInterval); countdownInterval = null; }
+  }
+
+  function showCountdownBanner(seconds){
+    let banner = document.getElementById('sessionCountdownBanner');
+    if(!banner){
+      banner = document.createElement('div');
+      banner.id = 'sessionCountdownBanner';
+      banner.style.cssText = 'position:fixed; top:0; left:0; right:0; z-index:9998; background:linear-gradient(135deg, #f59e0b, #dc2626); color:#fff; padding:10px 16px; text-align:center; font-weight:700; font-size:14px; box-shadow:0 2px 8px rgba(0,0,0,0.3);';
+      document.body.appendChild(banner);
+    }
+    let remaining = seconds;
+    const update = ()=>{
+      if(remaining <= 0){
+        banner.textContent = 'Sessão expirada...';
+        return;
+      }
+      const min = Math.floor(remaining / 60);
+      const sec = remaining % 60;
+      banner.textContent = `⏱️ Sua sessão expira em ${min}:${sec.toString().padStart(2,'0')} — Salve seu trabalho!`;
+      remaining--;
+    };
+    update();
+    if(countdownInterval) clearInterval(countdownInterval);
+    countdownInterval = setInterval(update, 1000);
+  }
+
+  function hideCountdownBanner(){
+    const banner = document.getElementById('sessionCountdownBanner');
+    if(banner){ banner.remove(); }
+    if(countdownInterval){ clearInterval(countdownInterval); countdownInterval = null; }
+  }
+
+  function showSessionExpiredOverlay(){
+    if(document.getElementById('sessionExpiredOverlay')) return;
+    hideCountdownBanner();
+    const overlay = document.createElement('div');
+    overlay.id = 'sessionExpiredOverlay';
+    overlay.style.cssText = `position:fixed; inset:0; z-index:9999; background:rgba(0,0,0,0.8); display:flex; align-items:center; justify-content:center;`;
+    overlay.innerHTML = `
+      <div style="background:#1e293b; color:#e5e7eb; padding:24px; border-radius:12px; max-width:460px; text-align:center; border:1px solid rgba(148,163,184,0.25)">
+        <div style="font-size:22px; font-weight:800; margin-bottom:6px">Sessão expirada</div>
+        <div style="color:#94a3b8; margin-bottom:16px">Por segurança, sua sessão encerrou após 30 minutos. Faça login novamente para continuar.</div>
+        <div style="display:flex; gap:10px; justify-content:center; flex-wrap:wrap;">
+          <button id="btnReLogin" style="padding:10px 14px; border-radius:10px; border: none; background:#06b6d4; color:white; font-weight:700; cursor:pointer">Fazer login novamente</button>
+        </div>
+      </div>`;
+    document.body.appendChild(overlay);
+    const btn = document.getElementById('btnReLogin');
+    if(btn){ btn.addEventListener('click', ()=>{ window.location.href = '/login?expired=1'; }); }
+  }
+
+  async function doAutoLogout(){
+    try{ await fetch(`${API_BASE}/auth/logout`, { method:'POST' }); }catch(_){}
+    showSessionExpiredOverlay();
+  }
+
+  // Inicial
+  scheduleFromServer();
+  // Revalida a cada minuto para manter precisão sem recarregar ou trocar de página
+  setInterval(scheduleFromServer, 60 * 1000);
+})();
+</script>
+
 <!-- PWA Service Worker Registration -->
 <script{%- if csp_nonce %} nonce="{{ csp_nonce }}"{%- endif %}>
 if ('serviceWorker' in navigator) {

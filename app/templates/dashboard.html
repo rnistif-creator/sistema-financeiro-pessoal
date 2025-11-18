@@ -199,12 +199,21 @@
             (async function(){
               try{
                 const usage = await fetchWithLoading(`${API_BASE}/api/usage/free-limits`, { timeout: 8000 });
-                const isTrial = !usage || (usage.tier && usage.tier.toLowerCase() === 'trial');
                 if(!usage) return;
-                const u = usage.lancamentos_mensal || { used:0, limit:100 };
-                const pct = Math.min(100, Math.round( (u.used / (u.limit||1)) * 100 ));
-                const text = `Plano gratuito: ${u.used}/${u.limit} lançamentos no mês`;
-                document.getElementById('freeUsageText').textContent = text;
+                const isTrial = (usage.tier && usage.tier.toLowerCase() === 'trial');
+                const lanc = usage.lancamentos_mensal || { used:0, limit:100 };
+                const tipos = usage.tipos || { used:0, limit:10 };
+                const subs = usage.subtipos || { used:0, limit:30 };
+                const formas = usage.formas_pagamento || { used:0, limit:2 };
+                const recAtv = usage.recorrentes_ativos || { used:0, limit:1 };
+                const parts = [];
+                parts.push(`Lançamentos: ${lanc.used}/${lanc.limit}/mês`);
+                parts.push(`Tipos: ${tipos.used}/${tipos.limit}`);
+                parts.push(`Subtipos: ${subs.used}/${subs.limit}`);
+                if(formas.limit){ parts.push(`Formas: ${formas.used}/${formas.limit}`); }
+                if(recAtv.limit){ parts.push(`Recorrentes ativos: ${recAtv.used}/${recAtv.limit}`); }
+                const pct = Math.min(100, Math.round( (lanc.used / (lanc.limit||1)) * 100 ));
+                document.getElementById('freeUsageText').textContent = `Plano gratuito • ${parts.join(' • ')}`;
                 document.getElementById('freeUsageBar').style.width = pct + '%';
                 // Exibir quando trial ou quando uso >= 50%
                 if(isTrial || pct >= 50){ document.getElementById('freeUsage').style.display = 'block'; }

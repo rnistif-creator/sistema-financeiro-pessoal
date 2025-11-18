@@ -341,6 +341,9 @@ def get_free_limits() -> Dict[str, int]:
         "lancamentos_mensal": int(os.getenv("FREE_MAX_LANCAMENTOS_MES", "100")),
         "tipos": int(os.getenv("FREE_MAX_TIPOS", "10")),
         "subtipos": int(os.getenv("FREE_MAX_SUBTIPOS", "30")),
+        # Novos limites do plano gratuito
+        "recorrentes": int(os.getenv("FREE_MAX_RECORRENTES_ATIVOS", "1")),
+        "formas_pagamento": int(os.getenv("FREE_MAX_FORMAS_PAGAMENTO", "2")),
     }
 
 # ================= SECURITY / RATE LIMIT / HEADERS =====================
@@ -1148,6 +1151,28 @@ async def logout(response: Response):
     """
     response.delete_cookie(key="access_token")
     return {"message": "Logout realizado com sucesso"}
+
+@app.get("/auth/session-remaining")
+async def auth_session_remaining(request: Request):
+    """
+    Retorna, em segundos, quanto falta para a sessão expirar com base no token JWT do cookie.
+    """
+    token = request.cookies.get("access_token")
+    if not token:
+        return JSONResponse(status_code=401, content={"detail": "Não autenticado"})
+    try:
+        from jose import jwt
+        from app.auth import SECRET_KEY, ALGORITHM
+        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        exp = payload.get("exp")
+        if not exp:
+            return {"seconds": 0}
+        import time
+        now = int(time.time())
+        seconds = max(0, int(exp - now))
+        return {"seconds": seconds}
+    except Exception:
+        return JSONResponse(status_code=401, content={"detail": "Sessão expirada"})
 
 @app.get("/auth/me", response_model=UserOut)
 async def get_me(current_user: User = Depends(get_current_active_user)):
@@ -2275,6 +2300,21 @@ async def criar_forma_pagamento(
 ):
     """Cria uma nova forma de pagamento para o usuário autenticado"""
     from datetime import date
+    # Limites do plano gratuito
+    try:
+        sub = db.query(Assinatura).filter(Assinatura.usuario_id == current_user.id).first()
+        if not sub or (sub.status == 'trial'):
+            limits = get_free_limits()
+            total_formas = db.query(FormaPagamento).filter(FormaPagamento.usuario_id == current_user.id).count()
+            if total_formas >= limits["formas_pagamento"]:
+                raise HTTPException(status_code=402, detail={
+                    "message": "Limite de formas de pagamento no plano gratuito atingido",
+                    "limit": "formas_pagamento",
+                    "max": limits["formas_pagamento"],
+                    "upgrade_url": "/contratar"
+                })
+    except Exception:
+        pass
     
     # Verificar se já existe uma forma com o mesmo nome para este usuário
     forma_existente = db.query(FormaPagamento).filter(
@@ -2438,6 +2478,11 @@ async def api_usage_free_limits(
     ).count()
     tipos_used = db.query(TipoLancamento).filter(TipoLancamento.usuario_id == current_user.id).count()
     subtipos_used = db.query(SubtipoLancamento).filter(SubtipoLancamento.usuario_id == current_user.id).count()
+    formas_used = db.query(FormaPagamento).filter(FormaPagamento.usuario_id == current_user.id).count()
+    recorrentes_ativos_used = db.query(LancamentoRecorrente).filter(
+        LancamentoRecorrente.usuario_id == current_user.id,
+        LancamentoRecorrente.ativo == 1
+    ).count()
 
     sub = db.query(Assinatura).filter(Assinatura.usuario_id == current_user.id).first()
     tier = (sub.status if sub else 'trial') if sub else 'trial'
@@ -2447,6 +2492,8 @@ async def api_usage_free_limits(
         "lancamentos_mensal": {"used": lanc_used, "limit": limits["lancamentos_mensal"]},
         "tipos": {"used": tipos_used, "limit": limits["tipos"]},
         "subtipos": {"used": subtipos_used, "limit": limits["subtipos"]},
+        "formas_pagamento": {"used": formas_used, "limit": limits.get("formas_pagamento")},
+        "recorrentes_ativos": {"used": recorrentes_ativos_used, "limit": limits.get("recorrentes")},
         "upgrade_url": "/contratar"
     }
 
@@ -3571,6 +3618,25 @@ async def criar_recorrente(recorrente: LancamentoRecorrenteIn, current_user: Use
         if tipo.natureza != recorrente.tipo:
             raise HTTPException(status_code=400, detail="O tipo de lançamento não corresponde à natureza")
     
+    # Limites do plano gratuito para recorrentes ativos
+    try:
+        sub = db.query(Assinatura).filter(Assinatura.usuario_id == current_user.id).first()
+        if not sub or (sub.status == 'trial'):
+            limits = get_free_limits()
+            ativos = db.query(LancamentoRecorrente).filter(
+                LancamentoRecorrente.usuario_id == current_user.id,
+                LancamentoRecorrente.ativo == 1
+            ).count()
+            if ativos >= limits["recorrentes"]:
+                raise HTTPException(status_code=402, detail={
+                    "message": "Limite de recorrentes ativos no plano gratuito atingido",
+                    "limit": "recorrentes",
+                    "max": limits["recorrentes"],
+                    "upgrade_url": "/contratar"
+                })
+    except Exception:
+        pass
+    
     try:
         novo_recorrente = LancamentoRecorrente(
             usuario_id=current_user.id,
@@ -3662,6 +3728,25 @@ async def toggle_recorrente(recorrente_id: int, current_user: User = Depends(ens
         raise HTTPException(status_code=404, detail="Recorrente não encontrado")
     
     try:
+        # Se estiver desativado e for ativar, validar limite do gratuito
+        if recorrente.ativo == 0:
+            try:
+                sub = db.query(Assinatura).filter(Assinatura.usuario_id == current_user.id).first()
+                if not sub or (sub.status == 'trial'):
+                    limits = get_free_limits()
+                    ativos = db.query(LancamentoRecorrente).filter(
+                        LancamentoRecorrente.usuario_id == current_user.id,
+                        LancamentoRecorrente.ativo == 1
+                    ).count()
+                    if ativos >= limits["recorrentes"]:
+                        raise HTTPException(status_code=402, detail={
+                            "message": "Limite de recorrentes ativos no plano gratuito atingido",
+                            "limit": "recorrentes",
+                            "max": limits["recorrentes"],
+                            "upgrade_url": "/contratar"
+                        })
+            except Exception:
+                pass
         recorrente.ativo = 1 if recorrente.ativo == 0 else 0
         db.commit()
         db.refresh(recorrente)
@@ -3686,6 +3771,29 @@ async def gerar_lancamento_recorrente(recorrente_id: int, current_user: User = D
         raise HTTPException(status_code=400, detail="Recorrente está inativo")
     
     try:
+        # Limite mensal de lançamentos no plano gratuito também se aplica à geração automática
+        try:
+            sub = db.query(Assinatura).filter(Assinatura.usuario_id == current_user.id).first()
+            if not sub or (sub.status == 'trial'):
+                limits = get_free_limits()
+                hoje = dt_date.today()
+                month_start = dt_date(hoje.year, hoje.month, 1)
+                next_month = add_months(month_start, 1)
+                total_lanc = db.query(Lancamento).filter(
+                    Lancamento.usuario_id == current_user.id,
+                    Lancamento.data_lancamento >= month_start,
+                    Lancamento.data_lancamento < next_month
+                ).count()
+                if total_lanc >= limits["lancamentos_mensal"]:
+                    raise HTTPException(status_code=402, detail={
+                        "message": "Limite mensal de lançamentos no plano gratuito atingido",
+                        "limit": "lancamentos_mensal",
+                        "max": limits["lancamentos_mensal"],
+                        "upgrade_url": "/contratar"
+                    })
+        except Exception:
+            pass
+
         hoje = dt_date.today()
         
         # Calcular data do primeiro vencimento baseado na frequência
