@@ -1840,17 +1840,17 @@ async def admin_alterar_senha_page(
 # ADMIN: Endpoint de Emergência para Reset de Senha
 # ======================
 
-@app.post("/admin/emergency-reset-password")
+@app.get("/admin/emergency-reset-password")
 async def emergency_reset_password(
     secret: str,
     email: str = "ricardo@rfinance.com.br",
     db: Session = Depends(get_db),
 ):
     """
-    Endpoint temporário para resetar senha do admin via URL.
+    Endpoint temporário para resetar senha do admin via URL GET.
     Remover após uso por segurança.
     
-    Uso: POST /admin/emergency-reset-password?secret=RENDER_RESET_2024&email=ricardo@rfinance.com.br
+    Uso: GET /admin/emergency-reset-password?secret=RENDER_RESET_2024&email=ricardo@rfinance.com.br
     """
     # Token secreto para proteger endpoint
     EMERGENCY_SECRET = os.getenv("EMERGENCY_RESET_SECRET", "RENDER_RESET_2024")
@@ -1878,7 +1878,8 @@ async def emergency_reset_password(
             return JSONResponse(content={
                 "success": True,
                 "message": f"Admin {email} criado com senha 123456",
-                "action": "created"
+                "action": "created",
+                "next": "Acesse /admin/login e use a senha 123456"
             })
         
         # Resetar senha
@@ -1890,7 +1891,8 @@ async def emergency_reset_password(
         return JSONResponse(content={
             "success": True,
             "message": f"Senha do admin {email} resetada para 123456",
-            "action": "reset"
+            "action": "reset",
+            "next": "Acesse /admin/login e use a senha 123456"
         })
         
     except Exception as e:
