@@ -23,6 +23,8 @@
     button{cursor:pointer;background:#0ea5e9;color:white;border:none}
     .brand{display:flex;align-items:center;gap:10px;margin-bottom:16px}
     .brand img{height:28px}
+    .actions{display:flex;gap:8px}
+    form.inline{display:inline}
   </style>
 </head>
 <body>
@@ -79,6 +81,7 @@
               <th>Ativo</th>
               <th>Criado em</th>
               <th>Último acesso</th>
+              <th>Ações</th>
             </tr>
           </thead>
           <tbody>
@@ -89,6 +92,20 @@
               <td>{{ 'Sim' if a.ativo else 'Não' }}</td>
               <td>{{ a.created_at.strftime('%d/%m/%Y %H:%M') if a.created_at else '-' }}</td>
               <td>{{ a.ultimo_acesso.strftime('%d/%m/%Y %H:%M') if a.ultimo_acesso else '-' }}</td>
+              <td>
+                {% if a.id != request.state.user.id %}
+                <form class="inline" method="post" action="/admin/usuarios/toggle">
+                  <input type="hidden" name="id" value="{{ a.id }}" />
+                  {% if a.ativo %}
+                    <button type="submit" style="background:#ef4444">Desativar</button>
+                  {% else %}
+                    <button type="submit" style="background:#10b981">Ativar</button>
+                  {% endif %}
+                </form>
+                {% else %}
+                  <small style="color:var(--muted)">Sua conta</small>
+                {% endif %}
+              </td>
             </tr>
           {% endfor %}
           </tbody>

@@ -1824,14 +1824,43 @@ async def admin_usuarios_create(
         return RedirectResponse("/admin/usuarios?error=Senha fraca: mínimo 12 caracteres, com maiúscula, minúscula, dígito e símbolo.", status_code=303)
 
     try:
+        # Checar duplicidade de email para mensagem mais clara (contexto admin)
+        exists = db.query(User).filter(User.email == email).first()
+        if exists:
+            return RedirectResponse("/admin/usuarios?error=Email já cadastrado.", status_code=303)
         from app.auth import UserCreate, create_user
         created = create_user(db, UserCreate(nome=nome, email=email, password=password), is_admin=True)
         return RedirectResponse(f"/admin/usuarios?success=Admin criado: {created.email}", status_code=303)
     except ValueError as ve:
-        # Mensagem genérica para não vazar existência de email
-        return RedirectResponse("/admin/usuarios?error=Não foi possível criar o admin. Verifique os dados.", status_code=303)
+        # Falhas de validação adicionais
+        return RedirectResponse(f"/admin/usuarios?error={str(ve)}", status_code=303)
     except Exception:
         return RedirectResponse("/admin/usuarios?error=Falha inesperada ao criar admin.", status_code=303)
+
+@app.post("/admin/usuarios/toggle")
+async def admin_usuarios_toggle(
+    request: Request,
+    _ip_ok: bool = Depends(ensure_admin_ip_allowed),
+    current_user: User = Depends(get_current_admin_user),
+    db: Session = Depends(get_db),
+):
+    form = await request.form()
+    try:
+        target_id = int(form.get("id") or "0")
+    except ValueError:
+        return RedirectResponse("/admin/usuarios?error=ID inválido.", status_code=303)
+
+    if target_id == current_user.id:
+        return RedirectResponse("/admin/usuarios?error=Você não pode desativar sua própria conta.", status_code=303)
+
+    target = db.query(User).filter(User.id == target_id, User.admin == True).first()
+    if not target:
+        return RedirectResponse("/admin/usuarios?error=Admin não encontrado.", status_code=303)
+
+    target.ativo = not bool(target.ativo)
+    db.commit()
+    action = "ativado" if target.ativo else "desativado"
+    return RedirectResponse(f"/admin/usuarios?success=Admin {target.email} {action}.", status_code=303)
 
 # ======================
 # ADMIN: Teste de Alertas
