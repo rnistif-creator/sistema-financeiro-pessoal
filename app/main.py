@@ -1837,7 +1837,7 @@ async def admin_alterar_senha_page(
     )
 
 # ======================
-# ADMIN: Endpoint de Emergência para Reset de Senha
+# ADMIN: Endpoint de Emergência para Reset de Senha e Desbloqueio
 # ======================
 
 @app.get("/admin/emergency-reset-password")
@@ -1848,6 +1848,7 @@ async def emergency_reset_password(
 ):
     """
     Endpoint temporário para resetar senha do admin via URL GET.
+    Também limpa bloqueios de tentativas falhas.
     Remover após uso por segurança.
     
     Uso: GET /admin/emergency-reset-password?secret=RENDER_RESET_2024&email=ricardo@rfinance.com.br
@@ -1862,6 +1863,19 @@ async def emergency_reset_password(
         )
     
     try:
+        # 1. Limpar bloqueios de tentativas falhas
+        blocked_attempts = db.query(LoginAttempt).filter(
+            LoginAttempt.email == email,
+            LoginAttempt.is_admin_attempt == True,
+            LoginAttempt.blocked_until != None
+        ).all()
+        
+        for attempt in blocked_attempts:
+            attempt.blocked_until = None
+        
+        blocks_removed = len(blocked_attempts)
+        
+        # 2. Resetar ou criar admin
         admin = db.query(User).filter(User.email == email).first()
         
         if not admin:
@@ -1879,6 +1893,7 @@ async def emergency_reset_password(
                 "success": True,
                 "message": f"Admin {email} criado com senha 123456",
                 "action": "created",
+                "blocks_removed": blocks_removed,
                 "next": "Acesse /admin/login e use a senha 123456"
             })
         
@@ -1892,6 +1907,7 @@ async def emergency_reset_password(
             "success": True,
             "message": f"Senha do admin {email} resetada para 123456",
             "action": "reset",
+            "blocks_removed": blocks_removed,
             "next": "Acesse /admin/login e use a senha 123456"
         })
         
