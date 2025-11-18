@@ -1836,6 +1836,70 @@ async def admin_alterar_senha_page(
         get_template_context(request, success=success, error=error)
     )
 
+# ======================
+# ADMIN: Endpoint de Emergência para Reset de Senha
+# ======================
+
+@app.post("/admin/emergency-reset-password")
+async def emergency_reset_password(
+    secret: str,
+    email: str = "ricardo@rfinance.com.br",
+    db: Session = Depends(get_db),
+):
+    """
+    Endpoint temporário para resetar senha do admin via URL.
+    Remover após uso por segurança.
+    
+    Uso: POST /admin/emergency-reset-password?secret=RENDER_RESET_2024&email=ricardo@rfinance.com.br
+    """
+    # Token secreto para proteger endpoint
+    EMERGENCY_SECRET = os.getenv("EMERGENCY_RESET_SECRET", "RENDER_RESET_2024")
+    
+    if secret != EMERGENCY_SECRET:
+        return JSONResponse(
+            status_code=403,
+            content={"detail": "Token inválido"}
+        )
+    
+    try:
+        admin = db.query(User).filter(User.email == email).first()
+        
+        if not admin:
+            # Criar admin se não existir
+            admin = User(
+                email=email,
+                nome="Ricardo Admin",
+                senha_hash=auth.get_password_hash("123456"),
+                admin=True,
+                ativo=True
+            )
+            db.add(admin)
+            db.commit()
+            return JSONResponse(content={
+                "success": True,
+                "message": f"Admin {email} criado com senha 123456",
+                "action": "created"
+            })
+        
+        # Resetar senha
+        admin.senha_hash = auth.get_password_hash("123456")
+        admin.admin = True
+        admin.ativo = True
+        db.commit()
+        
+        return JSONResponse(content={
+            "success": True,
+            "message": f"Senha do admin {email} resetada para 123456",
+            "action": "reset"
+        })
+        
+    except Exception as e:
+        db.rollback()
+        return JSONResponse(
+            status_code=500,
+            content={"success": False, "error": str(e)}
+        )
+
 @app.post("/admin/alterar-senha")
 async def admin_alterar_senha_submit(
     request: Request,
