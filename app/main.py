@@ -2421,6 +2421,35 @@ async def obter_uso_forma_pagamento(forma_id: int, current_user: User = Depends(
         "em_uso": count > 0
     }
 
+@app.get("/api/usage/free-limits")
+async def api_usage_free_limits(
+    current_user: User = Depends(get_current_active_user),
+    db: Session = Depends(get_db)
+):
+    limits = get_free_limits()
+    today = date.today()
+    month_start = date(today.year, today.month, 1)
+    next_month = add_months(month_start, 1)
+
+    lanc_used = db.query(Lancamento).filter(
+        Lancamento.usuario_id == current_user.id,
+        Lancamento.data_lancamento >= month_start,
+        Lancamento.data_lancamento < next_month
+    ).count()
+    tipos_used = db.query(TipoLancamento).filter(TipoLancamento.usuario_id == current_user.id).count()
+    subtipos_used = db.query(SubtipoLancamento).filter(SubtipoLancamento.usuario_id == current_user.id).count()
+
+    sub = db.query(Assinatura).filter(Assinatura.usuario_id == current_user.id).first()
+    tier = (sub.status if sub else 'trial') if sub else 'trial'
+
+    return {
+        "tier": tier,
+        "lancamentos_mensal": {"used": lanc_used, "limit": limits["lancamentos_mensal"]},
+        "tipos": {"used": tipos_used, "limit": limits["tipos"]},
+        "subtipos": {"used": subtipos_used, "limit": limits["subtipos"]},
+        "upgrade_url": "/contratar"
+    }
+
 @app.get("/api/tipos", response_model=List[TipoLancamentoOut])
 async def listar_tipos(current_user: User = Depends(get_current_active_user), db: Session = Depends(get_db)):
     try:

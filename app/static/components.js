@@ -3,6 +3,29 @@
  * Funções utilitárias para loading, toast, atalhos de teclado, etc.
  */
 
+// Interceptar globalmente respostas 402 (limites do plano gratuito) e redirecionar
+(function(){
+  try{
+    if (!window._origFetch) {
+      window._origFetch = window.fetch.bind(window);
+      window.fetch = async function(url, options){
+        const res = await window._origFetch(url, options);
+        if (res && res.status === 402) {
+          try {
+            const clone = res.clone();
+            const data = await clone.json();
+            const reason = encodeURIComponent(data?.message || 'Limite do plano gratuito atingido');
+            window.location.href = `/contratar?reason=${reason}`;
+          } catch (_) {
+            window.location.href = '/contratar';
+          }
+        }
+        return res;
+      }
+    }
+  }catch(e){ /* silencioso */ }
+})();
+
 // ============================================
 // LOADING OVERLAY
 // ============================================
