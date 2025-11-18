@@ -193,6 +193,33 @@ async def ensure_subscription(
     - Se não houver assinatura, cria uma de avaliação (trial) de 14 dias a partir de hoje.
     - Se vencida, retorna 402 Payment Required com detalhes do status.
     """
+    # Bloqueio financeiro explícito pelo admin
+    if getattr(current_user, 'bloqueado_financeiro', False):
+        raise HTTPException(
+            status_code=403,
+            detail={
+                "message": "Acesso financeiro bloqueado pelo administrador",
+                "bloqueado_financeiro": True
+            }
+        )
+
+    # Verificar validade de acesso quando definida e não indeterminada
+    try:
+        acesso_indeterminado = bool(getattr(current_user, 'acesso_indeterminado', False))
+        acesso_ate = getattr(current_user, 'acesso_ate', None)
+    except Exception:
+        acesso_indeterminado = False
+        acesso_ate = None
+    if not acesso_indeterminado and acesso_ate is not None:
+        if acesso_ate < date.today():
+            raise HTTPException(
+                status_code=402,
+                detail={
+                    "message": "Validade de acesso expirada",
+                    "acesso_ate": acesso_ate.isoformat() if acesso_ate else None
+                }
+            )
+
     # Import local para evitar ciclo
     from app.main import Assinatura
 

@@ -81,6 +81,10 @@ class User(Base):
     admin = Column(Boolean, default=False, nullable=False)
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
     ultimo_acesso = Column(DateTime, nullable=True)
+    # Controles de acesso adicionais
+    acesso_ate = Column(Date, nullable=True)
+    acesso_indeterminado = Column(Boolean, default=False, nullable=False)
+    bloqueado_financeiro = Column(Boolean, default=False, nullable=False)
 
 # ============================================================================
 # COBRANÇA / ASSINATURAS
@@ -1752,6 +1756,9 @@ class AdminClienteOut(BaseModel):
     fim_contrato: Optional[date]
     inativo_dias: Optional[int]
     assinatura_status: Optional[str]
+    acesso_ate: Optional[date] = None
+    acesso_indeterminado: Optional[bool] = None
+    bloqueado_financeiro: Optional[bool] = None
 
     class Config:
         from_attributes = True
@@ -1798,7 +1805,7 @@ async def admin_usuarios_page(
     admins = db.query(User).filter(User.admin == True).order_by(User.created_at.desc()).all()
     return templates.TemplateResponse(
         "admin_usuarios.html",
-        get_template_context(request, admins=admins, success=success, error=error)
+        get_template_context(request, admins=admins, success=success, error=error, current_user=current_user)
     )
 
 @app.post("/admin/usuarios")
@@ -2029,6 +2036,9 @@ async def api_admin_clientes(
             fim_contrato=sub.cancelada_em if (sub and sub.cancelada_em) else None,
             inativo_dias=inativo_dias,
             assinatura_status=sub.status if sub else None,
+            acesso_ate=u.acesso_ate if hasattr(u, 'acesso_ate') else None,
+            acesso_indeterminado=bool(getattr(u, 'acesso_indeterminado', False)),
+            bloqueado_financeiro=bool(getattr(u, 'bloqueado_financeiro', False)),
         ))
 
     # Filtro por busca
@@ -2082,6 +2092,56 @@ async def api_admin_clientes(
         total_pages=total_pages,
         counts_by_status=counts,
     )
+
+# ======================
+# ADMIN: Controle de acesso de clientes
+# ======================
+
+class AdminAjusteAcesso(BaseModel):
+    action: str  # extend | indeterminate | block
+    days: Optional[int] = None
+    value: Optional[bool] = None
+
+@app.post("/api/admin/clientes/{user_id}/acesso")
+async def api_admin_ajustar_acesso(
+    user_id: int,
+    payload: AdminAjusteAcesso,
+    db: Session = Depends(get_db),
+    _ip_ok: bool = Depends(ensure_admin_ip_allowed),
+    current_user: User = Depends(get_current_admin_user)
+):
+    target = db.query(User).filter(User.id == user_id, User.admin == False).first()
+    if not target:
+        raise HTTPException(status_code=404, detail="Usuário não encontrado")
+
+    if payload.action == "extend":
+        allowed = {30, 60, 90, 120, 180, 360}
+        if payload.days not in allowed:
+            raise HTTPException(status_code=400, detail="Dias inválidos")
+        base = target.acesso_ate if target.acesso_ate and target.acesso_ate > date.today() else date.today()
+        target.acesso_ate = base + timedelta(days=payload.days)
+        target.acesso_indeterminado = False
+    elif payload.action == "indeterminate":
+        if payload.value is None:
+            raise HTTPException(status_code=400, detail="Valor inválido")
+        target.acesso_indeterminado = bool(payload.value)
+        if target.acesso_indeterminado:
+            target.acesso_ate = None
+    elif payload.action == "block":
+        if payload.value is None:
+            raise HTTPException(status_code=400, detail="Valor inválido")
+        target.bloqueado_financeiro = bool(payload.value)
+    else:
+        raise HTTPException(status_code=400, detail="Ação inválida")
+
+    db.commit()
+    db.refresh(target)
+    return {
+        "id": target.id,
+        "acesso_ate": target.acesso_ate.isoformat() if target.acesso_ate else None,
+        "acesso_indeterminado": target.acesso_indeterminado,
+        "bloqueado_financeiro": target.bloqueado_financeiro
+    }
 
 # Página de Registro
 @app.get("/register")

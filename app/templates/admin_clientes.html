@@ -74,6 +74,7 @@
               <th data-sort="validade_contrato">Validade</th>
               <th data-sort="fim_contrato">Fim contrato</th>
               <th data-sort="inativo_dias">Inativo (dias)</th>
+              <th>Acesso</th>
             </tr>
           </thead>
           <tbody id="tbodyClientes">
@@ -124,7 +125,7 @@
     function render(resp){
       const list = (resp && resp.items) ? resp.items : [];
       if(!list.length){
-        tbody.innerHTML = `<tr><td colspan="8" class="muted" style="padding:16px;">Nenhum cliente encontrado</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="9" class="muted" style="padding:16px;">Nenhum cliente encontrado</td></tr>`;
       } else {
         tbody.innerHTML = list.map(c => `
           <tr>
@@ -136,6 +137,22 @@
             <td>${fmtDate(c.validade_contrato)}</td>
             <td>${fmtDate(c.fim_contrato)}</td>
             <td>${c.inativo_dias ?? '—'}</td>
+            <td>
+              <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap">
+                <select id="sel-${c.id}" style="padding:6px 8px;border-radius:8px;border:1px solid rgba(148,163,184,0.25);background:rgba(15,23,42,0.55);color:var(--text)">
+                  <option value="30">+30d</option>
+                  <option value="60">+60d</option>
+                  <option value="90">+90d</option>
+                  <option value="120">+120d</option>
+                  <option value="180">+180d</option>
+                  <option value="360">+360d</option>
+                </select>
+                <button data-act="extend" data-id="${c.id}" class="btn" style="padding:6px 10px;border-radius:8px;border:1px solid rgba(148,163,184,0.25);background:#0ea5e9;color:white;cursor:pointer;">Prorrogar</button>
+                <button data-act="indeterminate" data-id="${c.id}" data-val="${c.acesso_indeterminado? 'false':'true'}" class="btn" style="padding:6px 10px;border-radius:8px;border:1px solid rgba(148,163,184,0.25);background:#10b981;color:white;cursor:pointer;">${c.acesso_indeterminado? 'Remover indeterminado':'Indeterminado'}</button>
+                <button data-act="block" data-id="${c.id}" data-val="${c.bloqueado_financeiro? 'false':'true'}" class="btn" style="padding:6px 10px;border-radius:8px;border:1px solid rgba(148,163,184,0.25);background:${c.bloqueado_financeiro? '#22c55e':'#ef4444'};color:white;cursor:pointer;">${c.bloqueado_financeiro? 'Desbloquear':'Bloquear'}</button>
+              </div>
+              <small class="muted">Val.: ${c.acesso_indeterminado? 'indeterminado' : (fmtDate(c.acesso_ate) || '—')}</small>
+            </td>
           </tr>
         `).join('');
       }
@@ -152,6 +169,27 @@
         th.style.color = key === state.order_by ? 'var(--text)' : 'var(--muted)';
         th.textContent = th.textContent.replace(/\s+[↑↓]$/, '');
         if(key === state.order_by){ th.textContent = th.textContent + (state.order_dir === 'asc' ? ' ↑' : ' ↓'); }
+      });
+
+      // Wire access control buttons
+      tbody.querySelectorAll('button[data-act]')?.forEach(btn => {
+        btn.addEventListener('click', async (ev) => {
+          const b = ev.currentTarget;
+          const id = b.getAttribute('data-id');
+          const act = b.getAttribute('data-act');
+          let body = { action: act };
+          if(act === 'extend'){
+            const sel = document.getElementById(`sel-${id}`);
+            body.days = Number(sel.value);
+          } else if(act === 'indeterminate' || act === 'block'){
+            body.value = (b.getAttribute('data-val') === 'true');
+          }
+          try{
+            const res = await fetch(`/api/admin/clientes/${id}/acesso`, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(body)});
+            if(!res.ok) throw new Error('Falha ao ajustar acesso');
+            await carregar();
+          }catch(e){ alert('Erro: ' + e.message); }
+        });
       });
     }
 

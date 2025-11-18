@@ -93,7 +93,7 @@
               <td>{{ a.created_at.strftime('%d/%m/%Y %H:%M') if a.created_at else '-' }}</td>
               <td>{{ a.ultimo_acesso.strftime('%d/%m/%Y %H:%M') if a.ultimo_acesso else '-' }}</td>
               <td>
-                {% if a.id != request.state.user.id %}
+                {% if current_user and a.id != current_user.id %}
                 <form class="inline" method="post" action="/admin/usuarios/toggle">
                   <input type="hidden" name="id" value="{{ a.id }}" />
                   {% if a.ativo %}
