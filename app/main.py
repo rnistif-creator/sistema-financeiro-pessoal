@@ -1783,6 +1783,57 @@ async def admin_clientes_page(
     )
 
 # ======================
+# ADMIN: Usuários Admin (listar/criar)
+# ======================
+
+@app.get("/admin/usuarios")
+async def admin_usuarios_page(
+    request: Request,
+    _ip_ok: bool = Depends(ensure_admin_ip_allowed),
+    current_user: User = Depends(get_current_admin_user),
+    db: Session = Depends(get_db),
+    success: Optional[str] = None,
+    error: Optional[str] = None,
+):
+    admins = db.query(User).filter(User.admin == True).order_by(User.created_at.desc()).all()
+    return templates.TemplateResponse(
+        "admin_usuarios.html",
+        get_template_context(request, admins=admins, success=success, error=error)
+    )
+
+@app.post("/admin/usuarios")
+async def admin_usuarios_create(
+    request: Request,
+    _ip_ok: bool = Depends(ensure_admin_ip_allowed),
+    current_user: User = Depends(get_current_admin_user),
+    db: Session = Depends(get_db),
+):
+    form = await request.form()
+    nome = (form.get("nome") or "").strip()
+    email = (form.get("email") or "").strip().lower()
+    password = (form.get("password") or "").strip()
+    confirm = (form.get("confirm") or "").strip()
+
+    if not nome or not email or not password or not confirm:
+        return RedirectResponse("/admin/usuarios?error=Preencha todos os campos.", status_code=303)
+    if password != confirm:
+        return RedirectResponse("/admin/usuarios?error=Confirmação de senha não confere.", status_code=303)
+    # Reforço: senha forte mínima 12 + complexidade
+    from app.auth import validate_password_strength
+    if len(password) < 12 or not validate_password_strength(password):
+        return RedirectResponse("/admin/usuarios?error=Senha fraca: mínimo 12 caracteres, com maiúscula, minúscula, dígito e símbolo.", status_code=303)
+
+    try:
+        from app.auth import UserCreate, create_user
+        created = create_user(db, UserCreate(nome=nome, email=email, password=password), is_admin=True)
+        return RedirectResponse(f"/admin/usuarios?success=Admin criado: {created.email}", status_code=303)
+    except ValueError as ve:
+        # Mensagem genérica para não vazar existência de email
+        return RedirectResponse("/admin/usuarios?error=Não foi possível criar o admin. Verifique os dados.", status_code=303)
+    except Exception:
+        return RedirectResponse("/admin/usuarios?error=Falha inesperada ao criar admin.", status_code=303)
+
+# ======================
 # ADMIN: Teste de Alertas
 # ======================
 

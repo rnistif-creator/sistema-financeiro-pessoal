@@ -1,0 +1,100 @@
+{% set page_title = 'Usuários Admin' %}
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>{{ page_title }} - Sistema Financeiro</title>
+  <link rel="manifest" href="/static/manifest.json">
+  <link rel="stylesheet" href="/static/components.css">
+  <link rel="stylesheet" href="/static/components.css">
+  <style{% if csp_nonce %} nonce="{{ csp_nonce }}"{% endif %}>
+    body{font-family: system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Cantarell, Noto Sans, Helvetica, Arial, "Apple Color Emoji", "Segoe UI Emoji"; background: var(--bg); color: var(--text);}
+    .container{max-width:1100px;margin:40px auto;padding:16px;}
+    .card{background:var(--card);border:1px solid rgba(148,163,184,0.15);border-radius:12px;padding:16px;margin-bottom:16px}
+    table{width:100%;border-collapse:collapse}
+    th,td{padding:10px;border-bottom:1px solid rgba(148,163,184,0.15);text-align:left}
+    th{font-size:12px;text-transform:uppercase;letter-spacing:.6px;color:var(--muted)}
+    .grid{display:grid;gap:12px}
+    @media(min-width:720px){.grid-2{grid-template-columns:1fr 1fr}}
+    .error{background:#fee2e2;color:#991b1b;border:1px solid #fecaca;padding:10px;border-radius:8px}
+    .success{background:#dcfce7;color:#166534;border:1px solid #bbf7d0;padding:10px;border-radius:8px}
+    input,button{padding:10px;border-radius:8px;border:1px solid rgba(148,163,184,.3);background:var(--surface);color:var(--text)}
+    button{cursor:pointer;background:#0ea5e9;color:white;border:none}
+    .brand{display:flex;align-items:center;gap:10px;margin-bottom:16px}
+    .brand img{height:28px}
+  </style>
+</head>
+<body>
+  {% include '_admin_sidebar.html' %}
+  <div class="container">
+    <div class="brand">
+      <img src="{{ brand_logo_url }}" alt="Logo" />
+      <h1>{{ page_title }}</h1>
+    </div>
+
+    {% if error %}
+      <div class="error">{{ error }}</div>
+    {% endif %}
+    {% if success %}
+      <div class="success">{{ success }}</div>
+    {% endif %}
+
+    <div class="card">
+      <h2 style="margin-top:0">Cadastrar novo admin</h2>
+      <form method="post" action="/admin/usuarios">
+        <div class="grid grid-2">
+          <div>
+            <label>Nome</label>
+            <input name="nome" required minlength="2" maxlength="100" />
+          </div>
+          <div>
+            <label>Email</label>
+            <input name="email" type="email" required />
+          </div>
+          <div>
+            <label>Senha</label>
+            <input name="password" type="password" required placeholder="Min. 12, maiúscula, minúscula, dígito e símbolo" />
+          </div>
+          <div>
+            <label>Confirmar senha</label>
+            <input name="confirm" type="password" required />
+          </div>
+        </div>
+        <div style="margin-top:12px;display:flex;gap:8px;align-items:center">
+          <button type="submit">Criar Admin</button>
+          <small>Requisitos: mínimo 12 caracteres, com maiúscula, minúscula, dígito e símbolo.</small>
+        </div>
+      </form>
+    </div>
+
+    <div class="card">
+      <h2 style="margin-top:0">Admins existentes ({{ admins|length }})</h2>
+      <div style="overflow:auto">
+        <table>
+          <thead>
+            <tr>
+              <th>Nome</th>
+              <th>Email</th>
+              <th>Ativo</th>
+              <th>Criado em</th>
+              <th>Último acesso</th>
+            </tr>
+          </thead>
+          <tbody>
+          {% for a in admins %}
+            <tr>
+              <td>{{ a.nome }}</td>
+              <td>{{ a.email }}</td>
+              <td>{{ 'Sim' if a.ativo else 'Não' }}</td>
+              <td>{{ a.created_at.strftime('%d/%m/%Y %H:%M') if a.created_at else '-' }}</td>
+              <td>{{ a.ultimo_acesso.strftime('%d/%m/%Y %H:%M') if a.ultimo_acesso else '-' }}</td>
+            </tr>
+          {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</body>
+</html>
