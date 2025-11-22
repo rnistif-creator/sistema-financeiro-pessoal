@@ -53,10 +53,19 @@ services:
         value: ricardo@rfinance.com.br
       - key: INITIAL_ADMIN_NAME
         value: Ricardo Admin
-      - key: INITIAL_ADMIN_PASSWORD
-        value: 123456
+      # Removido valor explícito de senha. Defina via Dashboard (Environment Variables > Add Secret): INITIAL_ADMIN_PASSWORD
       - key: INITIAL_ADMIN_FORCE_RESET
         value: 1
+      # SMTP placeholders (defina valores reais via dashboard; não commitá senha)
+      - key: SMTP_SERVER
+        value: smtp.hostinger.com
+      - key: SMTP_PORT
+        value: 465
+      - key: SMTP_USER
+        value: no-reply@domo360.com.br
+      - key: SMTP_FROM
+        value: no-reply@domo360.com.br
+      # SMTP_PASSWORD deve ser inserido manualmente no painel como secret
     disk:
       name: data
       mountPath: /opt/render/project/src/data
